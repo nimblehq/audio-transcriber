@@ -102,7 +102,11 @@ def _run_transcription(meeting_id: str, job_id: str):
         # Diarize
         if HF_TOKEN:
             job_queue.update_job(job_id, stage="diarizing", progress=70)
-            diarize_model = DiarizationPipeline(token=HF_TOKEN, device=device)
+            diarize_model = DiarizationPipeline(
+                model_name="pyannote/speaker-diarization-3.1",
+                token=HF_TOKEN,
+                device=device,
+            )
             diarize_segments = diarize_model(audio)
             result = assign_word_speakers(diarize_segments, result)
 
