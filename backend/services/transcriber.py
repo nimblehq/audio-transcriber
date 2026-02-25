@@ -68,7 +68,10 @@ def _run_transcription(meeting_id: str, job_id: str):
         # Transcribe
         job_queue.update_job(job_id, stage="transcribing", progress=20)
         model = whisperx.load_model(WHISPER_MODEL, device, compute_type=compute_type)
-        result = model.transcribe(audio, batch_size=batch_size)
+        transcribe_opts = {"batch_size": batch_size}
+        if metadata.language and metadata.language != "auto":
+            transcribe_opts["language"] = metadata.language
+        result = model.transcribe(audio, **transcribe_opts)
 
         if not result or not result.get("segments"):
             raise RuntimeError("No speech detected in audio")
@@ -107,7 +110,10 @@ def _run_transcription(meeting_id: str, job_id: str):
                 token=HF_TOKEN,
                 device=device,
             )
-            diarize_segments = diarize_model(audio)
+            diarize_kwargs = {}
+            if metadata.num_speakers:
+                diarize_kwargs["num_speakers"] = metadata.num_speakers
+            diarize_segments = diarize_model(audio, **diarize_kwargs)
             result = assign_word_speakers(diarize_segments, result)
 
         job_queue.update_job(job_id, progress=90, stage="saving")

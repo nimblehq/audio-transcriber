@@ -31,6 +31,36 @@ function renderUpload(container) {
                     <option value="other" selected>Other</option>
                 </select>
             </div>
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="language-select">Language</label>
+                    <select id="language-select">
+                        <option value="auto" selected>Auto-detect</option>
+                        <option value="en">English</option>
+                        <option value="fr">French</option>
+                        <option value="de">German</option>
+                        <option value="es">Spanish</option>
+                        <option value="it">Italian</option>
+                        <option value="pt">Portuguese</option>
+                        <option value="nl">Dutch</option>
+                        <option value="ja">Japanese</option>
+                        <option value="zh">Chinese</option>
+                        <option value="ko">Korean</option>
+                        <option value="ru">Russian</option>
+                        <option value="th">Thai</option>
+                        <option value="ar">Arabic</option>
+                        <option value="hi">Hindi</option>
+                        <option value="tr">Turkish</option>
+                        <option value="pl">Polish</option>
+                        <option value="vi">Vietnamese</option>
+                        <option value="id">Indonesian</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="speakers-input">Number of Speakers</label>
+                    <input type="text" id="speakers-input" placeholder="Auto" value="">
+                </div>
+            </div>
             <button type="submit" id="upload-btn" class="btn btn-primary btn-large" disabled>
                 Upload & Transcribe
             </button>
@@ -108,7 +138,9 @@ async function handleUpload(e) {
     try {
         const title = document.getElementById('title-input').value;
         const type = document.getElementById('type-select').value;
-        const result = await API.createMeeting(selectedFile, title, type);
+        const language = document.getElementById('language-select').value;
+        const numSpeakers = document.getElementById('speakers-input').value.trim() || 'auto';
+        const result = await API.createMeeting(selectedFile, title, type, language, numSpeakers);
         App.navigate(`/meetings/${result.meeting_id}`);
     } catch (err) {
         showToast(err.message, 'error');

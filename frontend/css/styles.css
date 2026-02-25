@@ -291,6 +291,15 @@ body {
     margin-bottom: 6px;
 }
 
+.form-row {
+    display: flex;
+    gap: 16px;
+}
+
+.form-row .form-group {
+    flex: 1;
+}
+
 .form-group input,
 .form-group select {
     width: 100%;

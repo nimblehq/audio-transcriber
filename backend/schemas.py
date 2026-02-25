@@ -54,6 +54,8 @@ class MeetingMetadata(BaseModel):
     duration_seconds: float | None = None
     audio_filename: str = ""
     status: MeetingStatus = MeetingStatus.PROCESSING
+    language: str = "auto"
+    num_speakers: int | None = None
     job_id: str | None = None
     speakers: dict[str, str] = Field(default_factory=dict)
 
