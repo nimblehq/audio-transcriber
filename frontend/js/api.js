@@ -34,6 +34,12 @@ const API = {
         return res.json();
     },
 
+    async retryTranscription(id) {
+        const res = await fetch(`/api/meetings/${id}/retry`, { method: 'POST' });
+        if (!res.ok) throw new Error('Failed to retry transcription');
+        return res.json();
+    },
+
     async deleteMeeting(id) {
         const res = await fetch(`/api/meetings/${id}`, { method: 'DELETE' });
         if (!res.ok) throw new Error('Failed to delete meeting');

@@ -124,6 +124,20 @@ async def create_meeting(
     return {"meeting_id": meeting_id, "job_id": job.id}
 
 
+@router.post("/meetings/{meeting_id}/retry")
+async def retry_transcription(meeting_id: str):
+    metadata = _load_metadata(meeting_id)
+
+    job = job_queue.create_job(meeting_id)
+    metadata.status = MeetingStatus.PROCESSING
+    metadata.job_id = job.id
+    _save_metadata(metadata)
+
+    start_transcription(meeting_id, job.id)
+
+    return {"meeting_id": meeting_id, "job_id": job.id}
+
+
 @router.get("/meetings/{meeting_id}", response_model=MeetingDetail)
 async def get_meeting(meeting_id: str):
     metadata = _load_metadata(meeting_id)

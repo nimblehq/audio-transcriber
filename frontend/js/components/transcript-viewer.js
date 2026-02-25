@@ -255,6 +255,16 @@ async function updateProgress(meetingId, jobId) {
     }
 }
 
+async function retryTranscription(meetingId) {
+    try {
+        await API.retryTranscription(meetingId);
+        showToast('Retrying transcription...');
+        App.navigate(`/meetings/${meetingId}`);
+    } catch (err) {
+        showToast(err.message, 'error');
+    }
+}
+
 async function handleDeleteMeeting(meetingId) {
     if (!confirm('Delete this meeting and all its files?')) return;
     try {
