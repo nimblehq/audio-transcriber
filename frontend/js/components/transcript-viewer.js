@@ -141,6 +141,9 @@ function renderSegments(container, transcript, meta, meetingId) {
     const speakerColorMap = {};
     speakerIds.forEach((id, i) => { speakerColorMap[id] = getSpeakerColor(i); });
 
+    // Store speakers data globally so onclick handlers can reference it without inline JSON
+    window._speakerEditorState = { speakers, meetingId };
+
     container.innerHTML = `
         <div class="segments" id="segments-container">
             ${transcript.segments.map((seg, i) => {
@@ -151,7 +154,7 @@ function renderSegments(container, transcript, meta, meetingId) {
                         <div class="segment-header">
                             <span class="segment-time">${formatTimestamp(seg.start)}</span>
                             <span class="speaker-label" style="background-color: ${color}" data-speaker="${seg.speaker}"
-                                onclick="openSpeakerEditor(this.closest('.segment'), '${seg.speaker}', '${escapeHtml(speakerName)}', '${meetingId}', ${JSON.stringify(speakers).replace(/'/g, "\\'")}, () => App.navigate('/meetings/${meetingId}'))">
+                                onclick="handleSpeakerClick(this, '${seg.speaker}')">
                                 ${escapeHtml(speakerName)} ▾
                             </span>
                             <button class="btn btn-icon btn-segment-play" onclick="playFromSegment(${seg.start})" title="Play from here">▶</button>
@@ -162,6 +165,19 @@ function renderSegments(container, transcript, meta, meetingId) {
             }).join('')}
         </div>
     `;
+}
+
+function handleSpeakerClick(element, speakerId) {
+    const state = window._speakerEditorState;
+    const speakerName = state.speakers[speakerId] || speakerId;
+    openSpeakerEditor(
+        element.closest('.segment'),
+        speakerId,
+        speakerName,
+        state.meetingId,
+        { ...state.speakers },
+        () => App.navigate('/meetings/' + state.meetingId)
+    );
 }
 
 function playFromSegment(startTime) {
