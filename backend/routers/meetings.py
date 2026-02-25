@@ -15,6 +15,7 @@ from backend.schemas import (
     MeetingSummary,
     MeetingType,
     MeetingUpdate,
+    SegmentSpeakerUpdate,
     Transcript,
 )
 from backend.services.job_queue import job_queue
@@ -176,6 +177,38 @@ async def update_meeting(meeting_id: str, update: MeetingUpdate):
 
     _save_metadata(metadata)
     return metadata
+
+
+@router.patch("/meetings/{meeting_id}/segments/speaker")
+async def update_segment_speaker(meeting_id: str, update: SegmentSpeakerUpdate):
+    """Rename the speaker for a single transcript segment."""
+    metadata = _load_metadata(meeting_id)
+
+    transcript_path = MEETINGS_DIR / meeting_id / "transcript.json"
+    if not transcript_path.exists():
+        raise HTTPException(status_code=404, detail="Transcript not found")
+
+    transcript = Transcript(**json.loads(transcript_path.read_text()))
+
+    # Find the segment
+    segment = next((s for s in transcript.segments if s.id == update.segment_id), None)
+    if not segment:
+        raise HTTPException(status_code=404, detail="Segment not found")
+
+    # Create a unique speaker ID for this segment
+    new_speaker_id = f"{segment.speaker}_seg_{update.segment_id}"
+    segment.speaker = new_speaker_id
+
+    # Save updated transcript
+    transcript_path.write_text(
+        json.dumps(transcript.model_dump(), ensure_ascii=False, indent=2)
+    )
+
+    # Map the new speaker ID to the given name
+    metadata.speakers[new_speaker_id] = update.speaker_name
+    _save_metadata(metadata)
+
+    return {"ok": True}
 
 
 @router.delete("/meetings/{meeting_id}")

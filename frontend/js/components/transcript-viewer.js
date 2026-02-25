@@ -154,7 +154,7 @@ function renderSegments(container, transcript, meta, meetingId) {
                         <div class="segment-header">
                             <span class="segment-time">${formatTimestamp(seg.start)}</span>
                             <span class="speaker-label" style="background-color: ${color}" data-speaker="${seg.speaker}"
-                                onclick="handleSpeakerClick(this, '${seg.speaker}')">
+                                onclick="handleSpeakerClick(this, '${seg.speaker}', '${seg.id}')">
                                 ${escapeHtml(speakerName)} ▾
                             </span>
                             <button class="btn btn-icon btn-segment-play" onclick="playFromSegment(${seg.start})" title="Play from here">▶</button>
@@ -167,7 +167,7 @@ function renderSegments(container, transcript, meta, meetingId) {
     `;
 }
 
-function handleSpeakerClick(element, speakerId) {
+function handleSpeakerClick(element, speakerId, segmentId) {
     const state = window._speakerEditorState;
     const speakerName = state.speakers[speakerId] || speakerId;
     openSpeakerEditor(
@@ -176,7 +176,8 @@ function handleSpeakerClick(element, speakerId) {
         speakerName,
         state.meetingId,
         { ...state.speakers },
-        () => App.navigate('/meetings/' + state.meetingId)
+        () => App.navigate('/meetings/' + state.meetingId),
+        segmentId
     );
 }
 

@@ -91,5 +91,10 @@ class JobInfo(BaseModel):
     updated_at: datetime
 
 
+class SegmentSpeakerUpdate(BaseModel):
+    segment_id: str
+    speaker_name: str
+
+
 class AnalysisRequest(BaseModel):
     meeting_type: MeetingType | None = None

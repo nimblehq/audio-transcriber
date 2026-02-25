@@ -74,6 +74,16 @@ const API = {
         return res.json();
     },
 
+    async updateSegmentSpeaker(meetingId, segmentId, speakerName) {
+        const res = await fetch(`/api/meetings/${meetingId}/segments/speaker`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ segment_id: segmentId, speaker_name: speakerName }),
+        });
+        if (!res.ok) throw new Error('Failed to update segment speaker');
+        return res.json();
+    },
+
     audioUrl(meetingId) {
         return `/api/meetings/${meetingId}/audio`;
     },

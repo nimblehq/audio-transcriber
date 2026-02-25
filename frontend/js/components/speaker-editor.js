@@ -1,6 +1,6 @@
 let activePopover = null;
 
-function openSpeakerEditor(segmentEl, speakerId, currentName, meetingId, speakers, onSave) {
+function openSpeakerEditor(segmentEl, speakerId, currentName, meetingId, speakers, onSave, segmentId) {
     closeSpeakerPopover();
 
     const popover = document.createElement('div');
@@ -57,16 +57,13 @@ function openSpeakerEditor(segmentEl, speakerId, currentName, meetingId, speaker
 
         const scope = popover.querySelector('input[name="apply-scope"]:checked').value;
 
-        if (scope === 'all') {
-            speakers[speakerId] = newName;
-        } else {
-            // For single segment, we don't change the speaker map
-            // The segment-only rename is handled differently (not in MVP scope for simplicity)
-            speakers[speakerId] = newName;
-        }
-
         try {
-            await API.updateMeeting(meetingId, { speakers });
+            if (scope === 'all') {
+                speakers[speakerId] = newName;
+                await API.updateMeeting(meetingId, { speakers });
+            } else {
+                await API.updateSegmentSpeaker(meetingId, segmentId, newName);
+            }
             addRecentSpeakerName(newName);
             closeSpeakerPopover();
             showToast('Speaker name updated');
