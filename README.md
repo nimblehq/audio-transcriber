@@ -8,48 +8,75 @@ Works in two ways:
 
 ## Getting Started
 
-### Prerequisites
+### Step 0: Open Terminal
 
-- **Python 3.12**
-- **ffmpeg** (handles audio/video format conversion)
+All commands below are run in the **Terminal** app.
 
-Install ffmpeg if you don't have it:
+- **macOS:** Open Finder → Applications → Utilities → Terminal (or press `Cmd + Space`, type "Terminal", and hit Enter)
+
+### Step 1: Install Homebrew (macOS only)
+
+Homebrew is a package manager that makes it easy to install developer tools on macOS. Skip this if you already have it (run `brew --version` to check).
+
 ```bash
-# macOS
-brew install ffmpeg
-
-# Ubuntu / Debian
-sudo apt install ffmpeg
+/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
 ```
 
-Not sure if you have it? Run `ffmpeg -version` in your terminal. If you see a version number, you're good.
+Follow the on-screen instructions. When it finishes, **close and reopen Terminal** so the `brew` command is available.
 
-### Step 1: Install the project
+### Step 2: Install Python 3.12 and ffmpeg
+
+This project requires **Python 3.12 specifically** (not 3.11, not 3.13 -- some dependencies only work with 3.12).
 
 ```bash
+# macOS
+brew install python@3.12 ffmpeg
+```
+
+```bash
+# Ubuntu / Debian
+sudo apt update
+sudo apt install python3.12 python3.12-venv ffmpeg
+```
+
+Verify both are installed:
+
+```bash
+python3.12 --version   # should print Python 3.12.x
+ffmpeg -version         # should print version info
+```
+
+### Step 3: Download and install the project
+
+```bash
+cd ~/Desktop
+git clone <this-repo-url>
+cd audio-transcription
 make setup
 ```
 
-This creates a Python virtual environment and installs all dependencies. It may take a few minutes (PyTorch is a large download).
+> **Don't have `git`?** Run `brew install git` (macOS) or `sudo apt install git` (Linux) first, or download the project as a ZIP from GitHub and unzip it.
 
-### Step 2: Set up your API keys
+`make setup` creates an isolated Python environment and installs all dependencies. This may take a few minutes (PyTorch is a large download).
 
-You need a HuggingFace token (free) for speaker identification:
+### Step 4: Get a HuggingFace token (free)
+
+Speaker identification requires a free HuggingFace account and token.
 
 1. Create an account at https://huggingface.co
-2. Go to https://huggingface.co/settings/tokens and create a token
+2. Go to https://huggingface.co/settings/tokens and create a token (choose "Read" access)
 3. Accept the license agreement on each of these model pages (click "Agree and access repository" on each):
    - https://huggingface.co/pyannote/speaker-diarization-3.1
    - https://huggingface.co/pyannote/segmentation-3.0
    - https://huggingface.co/pyannote/speaker-diarization-community-1
 
-### Step 3: Configure your `.env` file
+### Step 5: Configure your `.env` file
 
 ```bash
 cp .env.example .env
 ```
 
-Open `.env` in any text editor and paste your token:
+Open `.env` in any text editor (TextEdit on macOS, or `nano .env` in Terminal) and paste your token:
 
 ```
 HF_TOKEN=hf_your_token_here
@@ -57,7 +84,7 @@ HF_TOKEN=hf_your_token_here
 
 The `.env` file is gitignored, so your keys stay private.
 
-### Step 4: Run the app
+### Step 6: Run the app
 
 ```bash
 make run
