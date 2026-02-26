@@ -297,8 +297,9 @@ def transcribe_meeting(
         log("Running speaker diarization...", quiet)
         try:
             diarize_model = DiarizationPipeline(
-                use_auth_token=hf_token,
-                device=device
+                model_name="pyannote/speaker-diarization-3.1",
+                token=hf_token,
+                device=device,
             )
 
             diarize_kwargs = {}
