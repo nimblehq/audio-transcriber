@@ -736,6 +736,33 @@ body {
     border: 1px solid #4a2a2a;
 }
 
+/* Plain text tab */
+.plaintext-view {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.plaintext-actions {
+    display: flex;
+    justify-content: flex-end;
+}
+
+.plaintext-content {
+    background: var(--bg-secondary);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 16px;
+    font-family: inherit;
+    font-size: 14px;
+    line-height: 1.8;
+    white-space: pre-wrap;
+    word-wrap: break-word;
+    color: var(--text-primary);
+    max-height: 70vh;
+    overflow-y: auto;
+}
+
 /* Responsive */
 @media (max-width: 640px) {
     .audio-player {

@@ -56,6 +56,7 @@ async function loadMeetingView(container, meetingId) {
 
                     <div class="tabs">
                         <button class="tab tab-active" data-tab="transcript" onclick="switchTab('transcript', '${meetingId}', '${meta.type}')">Transcript</button>
+                        <button class="tab" data-tab="plaintext" onclick="switchTab('plaintext', '${meetingId}', '${meta.type}')">Plain Text</button>
                         <button class="tab" data-tab="analysis" onclick="switchTab('analysis', '${meetingId}', '${meta.type}')">Analysis</button>
                         <label class="auto-scroll-toggle">
                             <input type="checkbox" id="auto-scroll-check" ${autoScroll ? 'checked' : ''} onchange="autoScroll = this.checked">
@@ -64,6 +65,7 @@ async function loadMeetingView(container, meetingId) {
                     </div>
 
                     <div id="transcript-tab" class="tab-content tab-content-active"></div>
+                    <div id="plaintext-tab" class="tab-content" hidden></div>
                     <div id="analysis-tab" class="tab-content" hidden></div>
                 ` : ''}
             </div>
@@ -209,6 +211,43 @@ function highlightCurrentSegment(currentTime) {
     }
 }
 
+function renderPlainTextTab(container) {
+    const state = window._speakerEditorState;
+    if (!state) return;
+
+    const segments = document.querySelectorAll('#segments-container .segment');
+    const lines = [];
+
+    segments.forEach(seg => {
+        const speakerId = seg.querySelector('.speaker-label').dataset.speaker;
+        const speakerName = state.speakers[speakerId] || speakerId;
+        const time = seg.querySelector('.segment-time').textContent;
+        const text = seg.querySelector('.segment-text').textContent;
+        lines.push(`[${time}] ${speakerName}: ${text}`);
+    });
+
+    const plainText = lines.join('\n');
+
+    container.innerHTML = `
+        <div class="plaintext-view">
+            <div class="plaintext-actions">
+                <button class="btn btn-primary" onclick="copyPlainText()">Copy to clipboard</button>
+            </div>
+            <pre class="plaintext-content">${escapeHtml(plainText)}</pre>
+        </div>
+    `;
+}
+
+function copyPlainText() {
+    const content = document.querySelector('.plaintext-content');
+    if (!content) return;
+    navigator.clipboard.writeText(content.textContent).then(() => {
+        showToast('Copied to clipboard');
+    }).catch(() => {
+        showToast('Failed to copy', 'error');
+    });
+}
+
 function switchTab(tabName, meetingId, meetingType) {
     document.querySelectorAll('.tab').forEach(t => t.classList.remove('tab-active'));
     document.querySelectorAll('.tab-content').forEach(t => { t.hidden = true; t.classList.remove('tab-content-active'); });
@@ -217,6 +256,10 @@ function switchTab(tabName, meetingId, meetingType) {
     const tabEl = document.getElementById(`${tabName}-tab`);
     tabEl.hidden = false;
     tabEl.classList.add('tab-content-active');
+
+    if (tabName === 'plaintext') {
+        renderPlainTextTab(tabEl);
+    }
 
     if (tabName === 'analysis' && !tabEl.dataset.loaded) {
         tabEl.dataset.loaded = 'true';
