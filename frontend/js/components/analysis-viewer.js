@@ -72,9 +72,5 @@ function renderPromptContent(container, prompt) {
 function copyPrompt() {
     const container = document.getElementById('analysis-tab');
     const raw = container.dataset.rawPrompt || '';
-    navigator.clipboard.writeText(raw).then(() => {
-        showToast('Copied to clipboard');
-    }).catch(() => {
-        showToast('Failed to copy', 'error');
-    });
+    copyToClipboard(raw);
 }

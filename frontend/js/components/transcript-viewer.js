@@ -241,11 +241,7 @@ function renderPlainTextTab(container) {
 function copyPlainText() {
     const content = document.querySelector('.plaintext-content');
     if (!content) return;
-    navigator.clipboard.writeText(content.textContent).then(() => {
-        showToast('Copied to clipboard');
-    }).catch(() => {
-        showToast('Failed to copy', 'error');
-    });
+    copyToClipboard(content.textContent);
 }
 
 function switchTab(tabName, meetingId, meetingType) {
