@@ -92,6 +92,8 @@ make run
 
 Open http://localhost:8000 in your browser. You can now upload audio/video files and start transcribing.
 
+> **Use `localhost`, not `0.0.0.0`.** Some browser features like desktop notifications require a secure context. Chrome treats `localhost` as secure, but not `0.0.0.0`.
+
 ## Web App
 
 The web app lets you upload recordings, track transcription progress, view transcripts synchronized with audio playback, and generate LLM-ready prompts for analysis.
@@ -104,6 +106,7 @@ The web app lets you upload recordings, track transcription progress, view trans
 - **Playback speed** control (0.5x to 2x)
 - **Speaker renaming** -- click a speaker label to assign a real name; recent names are remembered
 - **LLM-ready analysis prompts** -- pick a template (interview, sales, client, general), and the app combines it with your transcript into a prompt you can paste into any LLM
+- **Desktop notifications** -- get a browser notification when transcription finishes (or fails), even if the tab is in the background
 - **Retry** failed transcriptions
 
 ### Upload Options

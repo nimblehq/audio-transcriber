@@ -91,3 +91,23 @@ function escapeHtml(str) {
     div.textContent = str;
     return div.innerHTML;
 }
+
+/* Browser Notifications */
+
+function requestNotificationPermission() {
+    if ('Notification' in window && Notification.permission === 'default') {
+        Notification.requestPermission();
+    }
+}
+
+function sendNotification(title, options = {}) {
+    if (!('Notification' in window) || Notification.permission !== 'granted') return;
+    if (document.visibilityState === 'visible') return;
+
+    const notification = new Notification(title, options);
+    notification.addEventListener('click', () => {
+        window.focus();
+        if (options.url) App.navigate(options.url);
+        notification.close();
+    });
+}
