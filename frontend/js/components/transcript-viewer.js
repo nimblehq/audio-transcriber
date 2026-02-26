@@ -276,12 +276,20 @@ async function updateProgress(meetingId, jobId) {
 
         if (job.status === 'completed') {
             clearInterval(pollInterval);
+            sendNotification('Transcription complete', {
+                body: 'Your meeting has been transcribed and is ready to view.',
+                url: `/meetings/${meetingId}`,
+            });
             App.navigate(`/meetings/${meetingId}`);
             return;
         }
 
         if (job.status === 'failed') {
             clearInterval(pollInterval);
+            sendNotification('Transcription failed', {
+                body: job.error || 'An error occurred during transcription.',
+                url: `/meetings/${meetingId}`,
+            });
             section.innerHTML = `
                 <div class="error-state">
                     Transcription failed: ${escapeHtml(job.error || 'Unknown error')}
