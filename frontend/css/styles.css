@@ -18,8 +18,25 @@
     --danger: #D94A4A;
     --success: #4AD97A;
     --warning: #D9A84A;
+    --shadow: rgba(0, 0, 0, 0.4);
     --radius: 8px;
     --radius-sm: 4px;
+}
+
+[data-theme="light"] {
+    --bg: #f5f5f7;
+    --bg-surface: #ffffff;
+    --bg-hover: #eeeef0;
+    --bg-active: #e4e4e7;
+    --border: #d1d1d6;
+    --text: #1d1d1f;
+    --text-muted: #6e6e73;
+    --primary: #3478d4;
+    --primary-hover: #2a6bc4;
+    --danger: #d43434;
+    --success: #2da44e;
+    --warning: #bf8700;
+    --shadow: rgba(0, 0, 0, 0.1);
 }
 
 body {
@@ -140,6 +157,11 @@ body {
 .badge-sales { background: #3a2a3c; color: #d48ae4; }
 .badge-client { background: #2a3c2e; color: #7ae488; }
 .badge-other { background: #3a3a2a; color: #d4d48a; }
+
+[data-theme="light"] .badge-interview { background: #dbe8f8; color: #2a5a9c; }
+[data-theme="light"] .badge-sales { background: #f0ddf5; color: #8a3a9c; }
+[data-theme="light"] .badge-client { background: #dcf5e0; color: #2a7a3a; }
+[data-theme="light"] .badge-other { background: #f0f0d8; color: #7a7a2a; }
 
 /* Meeting List */
 .meetings-list {
@@ -506,7 +528,7 @@ body {
     border-radius: var(--radius);
     padding: 16px;
     min-width: 280px;
-    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+    box-shadow: 0 8px 32px var(--shadow);
 }
 
 .popover-input {
@@ -736,6 +758,18 @@ body {
     border: 1px solid #4a2a2a;
 }
 
+[data-theme="light"] .toast-success {
+    background: #dcf5e0;
+    color: #1a6e2e;
+    border: 1px solid #b8e6c4;
+}
+
+[data-theme="light"] .toast-error {
+    background: #fde8e8;
+    color: #c42a2a;
+    border: 1px solid #f0c4c4;
+}
+
 /* Plain text tab */
 .plaintext-view {
     display: flex;
@@ -749,7 +783,7 @@ body {
 }
 
 .plaintext-content {
-    background: var(--bg-secondary);
+    background: var(--bg-surface);
     border: 1px solid var(--border);
     border-radius: var(--radius);
     padding: 16px;
@@ -758,9 +792,34 @@ body {
     line-height: 1.8;
     white-space: pre-wrap;
     word-wrap: break-word;
-    color: var(--text-primary);
+    color: var(--text);
     max-height: 70vh;
     overflow-y: auto;
+}
+
+/* Theme Toggle */
+.theme-toggle {
+    position: fixed;
+    bottom: 24px;
+    left: 24px;
+    background: var(--bg-surface);
+    border: 1px solid var(--border);
+    color: var(--text);
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    cursor: pointer;
+    font-size: 18px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 2px 8px var(--shadow);
+    transition: background-color 0.15s;
+    z-index: 999;
+}
+
+.theme-toggle:hover {
+    background: var(--bg-hover);
 }
 
 /* Responsive */
