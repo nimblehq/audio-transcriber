@@ -1,5 +1,7 @@
 # Meeting Transcriber
 
+**Repo:** https://github.com/nimblehq/audio-transcriber
+
 Audio transcription web app using WhisperX + PyAnnote for speaker diarization.
 
 ## Tech Stack
