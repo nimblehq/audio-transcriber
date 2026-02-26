@@ -140,8 +140,8 @@ async function handleUpload(e) {
         const type = document.getElementById('type-select').value;
         const language = document.getElementById('language-select').value;
         const numSpeakers = document.getElementById('speakers-input').value.trim() || 'auto';
-        const result = await API.createMeeting(selectedFile, title, type, language, numSpeakers);
         requestNotificationPermission();
+        const result = await API.createMeeting(selectedFile, title, type, language, numSpeakers);
         App.navigate(`/meetings/${result.meeting_id}`);
     } catch (err) {
         showToast(err.message, 'error');
