@@ -1,37 +1,25 @@
 from fastapi import APIRouter, HTTPException
 
-from backend.schemas import AnalysisRequest
-from backend.services.analyzer import generate_analysis
-from config import MEETINGS_DIR
+from config import TEMPLATES_DIR
 
 router = APIRouter()
 
-
-@router.post("/meetings/{meeting_id}/analysis")
-async def create_analysis(meeting_id: str, request: AnalysisRequest):
-    meeting_dir = MEETINGS_DIR / meeting_id
-    if not meeting_dir.exists():
-        raise HTTPException(status_code=404, detail="Meeting not found")
-
-    transcript_path = meeting_dir / "transcript.json"
-    if not transcript_path.exists():
-        raise HTTPException(status_code=400, detail="Transcript not ready yet")
-
-    try:
-        text = await generate_analysis(meeting_id, request.meeting_type)
-        return {"analysis": text}
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+TEMPLATE_FILES = {
+    "interview": "interview_analysis.md",
+    "sales": "sales_meeting_analysis.md",
+    "client": "client_meeting_analysis.md",
+    "other": "other.md",
+}
 
 
-@router.get("/meetings/{meeting_id}/analysis")
-async def get_analysis(meeting_id: str):
-    meeting_dir = MEETINGS_DIR / meeting_id
-    if not meeting_dir.exists():
-        raise HTTPException(status_code=404, detail="Meeting not found")
+@router.get("/templates/{template_type}")
+async def get_template(template_type: str):
+    filename = TEMPLATE_FILES.get(template_type)
+    if not filename:
+        raise HTTPException(status_code=404, detail="Template not found")
 
-    analysis_path = meeting_dir / "analysis.md"
-    if not analysis_path.exists():
-        raise HTTPException(status_code=404, detail="No analysis generated yet")
+    template_path = TEMPLATES_DIR / filename
+    if not template_path.exists():
+        raise HTTPException(status_code=404, detail="Template file not found")
 
-    return {"analysis": analysis_path.read_text(encoding="utf-8")}
+    return {"template": template_path.read_text(encoding="utf-8")}

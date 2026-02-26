@@ -34,9 +34,7 @@ This creates a Python virtual environment and installs all dependencies. It may 
 
 ### Step 2: Set up your API keys
 
-You need two API keys. Both are free to create.
-
-**HuggingFace token** (identifies who is speaking):
+You need a HuggingFace token (free) for speaker identification:
 
 1. Create an account at https://huggingface.co
 2. Go to https://huggingface.co/settings/tokens and create a token
@@ -45,22 +43,16 @@ You need two API keys. Both are free to create.
    - https://huggingface.co/pyannote/segmentation-3.0
    - https://huggingface.co/pyannote/speaker-diarization-community-1
 
-**Anthropic API key** (powers the meeting analysis):
-
-1. Create an account at https://console.anthropic.com
-2. Go to https://console.anthropic.com/settings/keys and create a key
-
 ### Step 3: Configure your `.env` file
 
 ```bash
 cp .env.example .env
 ```
 
-Open `.env` in any text editor and paste your keys:
+Open `.env` in any text editor and paste your token:
 
 ```
 HF_TOKEN=hf_your_token_here
-ANTHROPIC_API_KEY=sk-ant-your_key_here
 ```
 
 The `.env` file is gitignored, so your keys stay private.
@@ -75,7 +67,7 @@ Open http://localhost:8000 in your browser. You can now upload audio/video files
 
 ## Web App
 
-The web app lets you upload recordings, track transcription progress, view transcripts synchronized with audio playback, and generate AI analyses.
+The web app lets you upload recordings, track transcription progress, view transcripts synchronized with audio playback, and generate LLM-ready prompts for analysis.
 
 ### Features
 
@@ -84,13 +76,8 @@ The web app lets you upload recordings, track transcription progress, view trans
 - **Audio player** synced with the transcript -- click any line to jump to that moment
 - **Playback speed** control (0.5x to 2x)
 - **Speaker renaming** -- click a speaker label to assign a real name; recent names are remembered
-- **AI meeting analysis** powered by Claude, with templates for different meeting types:
-  - Interview evaluations
-  - Sales call summaries
-  - Client meeting notes
-  - General meeting summaries
+- **LLM-ready analysis prompts** -- pick a template (interview, sales, client, general), and the app combines it with your transcript into a prompt you can paste into any LLM
 - **Retry** failed transcriptions
-- **Copy or download** analyses as Markdown
 
 ### Upload Options
 
@@ -169,8 +156,6 @@ All settings are configured via environment variables (in your `.env` file or ex
 | Variable | Default | Description |
 |----------|---------|-------------|
 | `HF_TOKEN` | | HuggingFace token for speaker diarization |
-| `ANTHROPIC_API_KEY` | | Anthropic API key for meeting analysis |
-| `CLAUDE_MODEL` | `claude-sonnet-4-20250514` | Claude model used for analysis |
 | `WHISPER_MODEL` | `large-v3` | Whisper model size (`large-v3`, `medium`, `small`, `base`) |
 | `WHISPER_DEVICE` | `auto` | Compute device (`auto`, `cuda`, `cpu`) |
 | `WHISPER_BATCH_SIZE` | `16` | Batch size for transcription (lower if out of memory) |

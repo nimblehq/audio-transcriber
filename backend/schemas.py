@@ -96,5 +96,3 @@ class SegmentSpeakerUpdate(BaseModel):
     speaker_name: str
 
 
-class AnalysisRequest(BaseModel):
-    meeting_type: MeetingType | None = None

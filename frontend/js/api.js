@@ -54,23 +54,9 @@ const API = {
         return res.json();
     },
 
-    async getAnalysis(meetingId) {
-        const res = await fetch(`/api/meetings/${meetingId}/analysis`);
-        if (res.status === 404) return null;
-        if (!res.ok) throw new Error('Failed to fetch analysis');
-        return res.json();
-    },
-
-    async generateAnalysis(meetingId, meetingType) {
-        const res = await fetch(`/api/meetings/${meetingId}/analysis`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ meeting_type: meetingType || null }),
-        });
-        if (!res.ok) {
-            const err = await res.json();
-            throw new Error(err.detail || 'Analysis generation failed');
-        }
+    async getTemplate(templateType) {
+        const res = await fetch(`/api/templates/${templateType}`);
+        if (!res.ok) throw new Error('Failed to fetch template');
         return res.json();
     },
 

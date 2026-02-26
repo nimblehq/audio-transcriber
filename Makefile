@@ -4,9 +4,9 @@ setup:
 	python3.12 -m venv .venv
 	. .venv/bin/activate && pip install -r requirements.txt
 	@echo ""
-	@echo "Setup complete. Now configure your API keys:"
-	@echo "  export HF_TOKEN='your_huggingface_token'"
-	@echo "  export ANTHROPIC_API_KEY='your_anthropic_key'"
+	@echo "Setup complete. Now configure your API key:"
+	@echo "  cp .env.example .env"
+	@echo "  Then edit .env and add your HuggingFace token"
 
 run:
 	. .venv/bin/activate && python run.py

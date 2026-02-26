@@ -11,8 +11,6 @@ MEETINGS_DIR = DATA_DIR / "meetings"
 TEMPLATES_DIR = BASE_DIR / "templates"
 
 HF_TOKEN = os.getenv("HF_TOKEN", "")
-ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY", "")
-CLAUDE_MODEL = os.getenv("CLAUDE_MODEL", "claude-sonnet-4-20250514")
 
 WHISPER_MODEL = os.getenv("WHISPER_MODEL", "large-v3")
 WHISPER_DEVICE = os.getenv("WHISPER_DEVICE", "auto")
