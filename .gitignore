@@ -25,6 +25,12 @@ __pycache__/
 *.transcription_cache.json
 sources/
 
+# Meeting data (uploaded audio, transcripts, analyses)
+data/meetings/
+
+# Virtual environment
+.venv/
+
 # IDE
 .idea/
 .vscode/

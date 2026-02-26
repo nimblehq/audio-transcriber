@@ -1,55 +1,105 @@
 # Audio Transcriber
 
-Local audio/video transcription with speaker diarization using WhisperX.
+Local audio/video transcription with speaker diarization, speaker labeling, and AI-powered meeting analysis. Built with WhisperX and Claude.
 
-## Setup
+Works in two ways:
+- **Web app** -- upload recordings, view synced transcripts, rename speakers, and generate AI analyses from your browser
+- **CLI** -- transcribe files directly from the terminal
 
-1. **Install ffmpeg** (required for audio processing):
-   ```bash
-   brew install ffmpeg        # macOS
-   # apt install ffmpeg       # Ubuntu/Debian
-   ```
+## Getting Started
 
-2. **Install Python dependencies:**
-   ```bash
-   pip install whisperx torch torchaudio
-   ```
+### Prerequisites
 
-3. **Get HuggingFace token** (required for speaker diarization):
-   - Create account at https://huggingface.co
-   - Get token from https://huggingface.co/settings/tokens
-   - Accept terms for these models:
-     - https://huggingface.co/pyannote/speaker-diarization-3.1
-     - https://huggingface.co/pyannote/segmentation-3.0
+- **Python 3.12**
+- **ffmpeg** (handles audio/video format conversion)
 
-4. **Set token** (choose one method):
+Install ffmpeg if you don't have it:
+```bash
+# macOS
+brew install ffmpeg
 
-   **Option A: Using a `.env` file (recommended)**
+# Ubuntu / Debian
+sudo apt install ffmpeg
+```
 
-   Copy the example file and add your token:
-   ```bash
-   cp .env.example .env
-   ```
-   Then edit `.env` and replace `your_huggingface_token_here` with your actual token:
-   ```
-   HF_TOKEN=hf_your_actual_token
-   ```
-   The `.env` file is gitignored, so your token stays private.
+Not sure if you have it? Run `ffmpeg -version` in your terminal. If you see a version number, you're good.
 
-   **Option B: Using an environment variable**
-   ```bash
-   export HF_TOKEN="hf_your_token_here"
-   ```
-   Note: This only persists for the current terminal session.
+### Step 1: Install the project
 
-## Usage
+```bash
+make setup
+```
+
+This creates a Python virtual environment and installs all dependencies. It may take a few minutes (PyTorch is a large download).
+
+### Step 2: Set up your API keys
+
+You need a HuggingFace token (free) for speaker identification:
+
+1. Create an account at https://huggingface.co
+2. Go to https://huggingface.co/settings/tokens and create a token
+3. Accept the license agreement on each of these model pages (click "Agree and access repository" on each):
+   - https://huggingface.co/pyannote/speaker-diarization-3.1
+   - https://huggingface.co/pyannote/segmentation-3.0
+   - https://huggingface.co/pyannote/speaker-diarization-community-1
+
+### Step 3: Configure your `.env` file
+
+```bash
+cp .env.example .env
+```
+
+Open `.env` in any text editor and paste your token:
+
+```
+HF_TOKEN=hf_your_token_here
+```
+
+The `.env` file is gitignored, so your keys stay private.
+
+### Step 4: Run the app
+
+```bash
+make run
+```
+
+Open http://localhost:8000 in your browser. You can now upload audio/video files and start transcribing.
+
+## Web App
+
+The web app lets you upload recordings, track transcription progress, view transcripts synchronized with audio playback, and generate LLM-ready prompts for analysis.
+
+### Features
+
+- **Upload** audio/video files (mp3, mp4, m4a, wav, webm) up to 500 MB
+- **Real-time progress** tracking as files are transcribed
+- **Audio player** synced with the transcript -- click any line to jump to that moment
+- **Playback speed** control (0.5x to 2x)
+- **Speaker renaming** -- click a speaker label to assign a real name; recent names are remembered
+- **LLM-ready analysis prompts** -- pick a template (interview, sales, client, general), and the app combines it with your transcript into a prompt you can paste into any LLM
+- **Retry** failed transcriptions
+
+### Upload Options
+
+When uploading, you can optionally specify:
+
+| Option | Default | What it does |
+|--------|---------|-------------|
+| Title | Filename | Display name for the meeting |
+| Meeting type | Other | Determines which analysis template is used |
+| Language | Auto-detect | Set explicitly for faster transcription |
+| Number of speakers | Auto-detect | Set explicitly for better speaker identification |
+
+## CLI
+
+The CLI is useful for batch processing or scripting.
 
 **Basic transcription:**
 ```bash
 python transcriber.py meeting.mp3
 ```
 
-Supports mp3, mp4, wav, m4a, and other ffmpeg-compatible formats. Output is saved alongside the input file (e.g., `meeting.mp3` → `meeting.txt`).
+Supports mp3, mp4, wav, m4a, and other ffmpeg-compatible formats. Output is saved alongside the input file (e.g., `meeting.mp3` -> `meeting.txt`).
 
 **With speaker names:**
 ```bash
@@ -65,7 +115,7 @@ python transcriber.py meeting.mp3 --interactive
 
 **Options:**
 ```bash
-# Specify language (faster — skips auto-detection)
+# Specify language (faster -- skips auto-detection)
 python transcriber.py meeting.mp3 --language en
 
 # Use smaller model (faster, less accurate)
@@ -99,10 +149,23 @@ python transcriber.py meeting.mp3 --quiet
 [00:01:15] Bob: I'd estimate about three weeks for the core functionality.
 ```
 
+## Configuration
+
+All settings are configured via environment variables (in your `.env` file or exported in your shell).
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `HF_TOKEN` | | HuggingFace token for speaker diarization |
+| `WHISPER_MODEL` | `large-v3` | Whisper model size (`large-v3`, `medium`, `small`, `base`) |
+| `WHISPER_DEVICE` | `auto` | Compute device (`auto`, `cuda`, `cpu`) |
+| `WHISPER_BATCH_SIZE` | `16` | Batch size for transcription (lower if out of memory) |
+| `DATA_DIR` | `./data` | Where meeting data is stored |
+| `MAX_UPLOAD_SIZE` | `500MB` | Maximum upload file size |
+
 ## Tips
 
 - **Language:** Use `--language en` (or `fr`, `de`, etc.) to skip auto-detection and speed up transcription.
 - **Model choice:** `large-v3` is best quality but slower. `medium` is a good balance. `small` or `base` for quick drafts.
-- **GPU memory:** If you run out, reduce `--batch-size` to 8 or 4.
-- **Known speaker count:** Use `--num-speakers` if you know exactly how many people are in the meeting — improves accuracy.
-- **Long meetings:** 1-1.5h meetings typically take 15-25 min to process with `large-v3` on a decent GPU.
+- **GPU memory:** If you run out, reduce `--batch-size` (CLI) or set `WHISPER_BATCH_SIZE` in `.env` (web app) to 8 or 4.
+- **Known speaker count:** Specifying the number of speakers improves diarization accuracy.
+- **No GPU?** It still works on CPU, just slower. Set `WHISPER_DEVICE=cpu` if auto-detection has issues.
