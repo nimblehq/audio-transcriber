@@ -9,6 +9,7 @@ TEMPLATE_FILES = {
     "sales": "sales_meeting_analysis.md",
     "client": "client_meeting_analysis.md",
     "other": "other.md",
+    "prototype": "prototype_scope.md",
 }
 
 
