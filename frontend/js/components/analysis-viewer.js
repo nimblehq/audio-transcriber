@@ -9,6 +9,7 @@ function renderAnalysisTab(container, meetingId, meetingType) {
                     <option value="sales" ${meetingType === 'sales' ? 'selected' : ''}>Sales</option>
                     <option value="client" ${meetingType === 'client' ? 'selected' : ''}>Client</option>
                     <option value="other" ${meetingType === 'other' ? 'selected' : ''}>Other</option>
+                    <option value="prototype">Prototype Scope</option>
                 </select>
             </div>
             <button class="btn btn-primary" id="generate-prompt-btn" onclick="handleGeneratePrompt()">
