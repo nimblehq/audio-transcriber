@@ -1,6 +1,8 @@
 let currentAudio = null;
 let pollInterval = null;
 let autoScroll = true;
+let userScrolledAway = false;
+let scrollTimeout = null;
 
 function renderTranscriptView(container, meetingId) {
     container.innerHTML = '<div class="loading">Loading meeting...</div>';
@@ -78,6 +80,7 @@ async function loadMeetingView(container, meetingId) {
         if (!isProcessing && !isError && transcript) {
             setupAudioPlayer(meetingId);
             renderSegments(document.getElementById('transcript-tab'), transcript, meta, meetingId);
+            setupScrollDetection();
         }
     } catch (err) {
         container.innerHTML = `<div class="error-state">Failed to load meeting: ${escapeHtml(err.message)}</div>`;
@@ -183,8 +186,32 @@ function handleSpeakerClick(element, speakerId, segmentId) {
     );
 }
 
+function setupScrollDetection() {
+    const segmentsContainer = document.getElementById('segments-container');
+    if (!segmentsContainer) return;
+
+    segmentsContainer.addEventListener('wheel', () => {
+        userScrolledAway = true;
+        clearTimeout(scrollTimeout);
+    });
+
+    segmentsContainer.addEventListener('touchmove', () => {
+        userScrolledAway = true;
+        clearTimeout(scrollTimeout);
+    });
+
+    const checkbox = document.getElementById('auto-scroll-check');
+    if (checkbox) {
+        checkbox.addEventListener('change', () => {
+            autoScroll = checkbox.checked;
+            if (autoScroll) userScrolledAway = false;
+        });
+    }
+}
+
 function playFromSegment(startTime) {
     if (!currentAudio) return;
+    userScrolledAway = false;
     currentAudio.currentTime = startTime;
     currentAudio.play();
     const playPause = document.getElementById('play-pause');
@@ -206,7 +233,7 @@ function highlightCurrentSegment(currentTime) {
         }
     });
 
-    if (activeSegment && autoScroll) {
+    if (activeSegment && autoScroll && !userScrolledAway) {
         activeSegment.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
     }
 }
@@ -349,5 +376,7 @@ function cleanupTranscriptView() {
         currentAudio.pause();
         currentAudio = null;
     }
+    userScrolledAway = false;
+    clearTimeout(scrollTimeout);
     closeSpeakerPopover();
 }
