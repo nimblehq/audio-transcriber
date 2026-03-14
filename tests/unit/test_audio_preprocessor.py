@@ -3,9 +3,11 @@ from __future__ import annotations
 import wave
 from pathlib import Path
 
-import numpy as np
+import pytest
 
-from backend.services.audio_preprocessor import (
+np = pytest.importorskip("numpy")
+
+from backend.services.audio_preprocessor import (  # noqa: E402
     HIGHPASS_CUTOFF_HZ,
     NOISE_PROP_DECREASE,
     TARGET_LUFS,
