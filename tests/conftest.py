@@ -9,6 +9,8 @@ from pathlib import Path
 import pytest
 from httpx import ASGITransport, AsyncClient
 
+from backend.services.job_queue import job_queue
+
 FIXTURES_DIR = Path(__file__).parent / "fixtures"
 
 
@@ -19,6 +21,13 @@ def _create_silence_wav(path: Path) -> None:
         f.setsampwidth(2)
         f.setframerate(16000)
         f.writeframes(struct.pack("<" + "h" * 16, *([0] * 16)))
+
+
+@pytest.fixture(autouse=True)
+def _clean_job_queue():
+    """Clear the job_queue singleton after each test to prevent state leakage."""
+    yield
+    job_queue.clear()
 
 
 @pytest.fixture
