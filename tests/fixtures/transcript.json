@@ -1,0 +1,33 @@
+{
+  "segments": [
+    {
+      "id": "seg-001",
+      "start": 0.0,
+      "end": 5.2,
+      "speaker": "SPEAKER_00",
+      "text": "Good morning everyone, let's get started."
+    },
+    {
+      "id": "seg-002",
+      "start": 5.5,
+      "end": 12.8,
+      "speaker": "SPEAKER_01",
+      "text": "Sure, I have a quick update on the backend work."
+    },
+    {
+      "id": "seg-003",
+      "start": 13.0,
+      "end": 20.1,
+      "speaker": "SPEAKER_00",
+      "text": "Great, go ahead."
+    },
+    {
+      "id": "seg-004",
+      "start": 20.5,
+      "end": 35.0,
+      "speaker": "SPEAKER_01",
+      "text": "We finished the API refactoring and all tests are passing now."
+    }
+  ],
+  "language": "en"
+}
