@@ -49,4 +49,6 @@ Add ruff to requirements.txt under dev dependencies section
 
 ## Deviations from Plan
 
-_Populated after implementation._
+- Added `push` trigger for develop/main in addition to `pull_request` (architect review: direct merges would skip CI)
+- Aligned CI dependency versions with requirements.txt instead of using bare package names
+- Added pip cache to lint job for consistency with test job
