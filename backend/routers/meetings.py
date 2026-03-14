@@ -81,6 +81,7 @@ async def create_meeting(
     meeting_type: str = Form("other"),
     language: str = Form("auto"),
     num_speakers: str = Form("auto"),
+    preprocess_audio: str = Form("true"),
 ):
     # Validate file extension
     ext = Path(file.filename).suffix.lower()
@@ -122,6 +123,8 @@ async def create_meeting(
         except ValueError:
             pass
 
+    effective_preprocess = preprocess_audio.lower() not in ("false", "0", "no")
+
     metadata = MeetingMetadata(
         id=meeting_id,
         title=effective_title,
@@ -129,6 +132,7 @@ async def create_meeting(
         audio_filename=audio_filename,
         language=effective_language,
         num_speakers=effective_num_speakers,
+        preprocess_audio=effective_preprocess,
         status=MeetingStatus.PROCESSING,
         job_id=job.id,
     )
