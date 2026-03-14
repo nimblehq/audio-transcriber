@@ -74,9 +74,9 @@ class TestTranscriptionCompletionFlow:
         # Step 2: Simulate transcription completion (what transcriber.py does)
         transcript_data = {
             "segments": [
-                {"id": "seg_0000", "start": 0.0, "end": 3.5, "speaker": "SPEAKER_00", "text": "Hello, thanks for joining."},
-                {"id": "seg_0001", "start": 4.0, "end": 8.2, "speaker": "SPEAKER_01", "text": "Happy to be here."},
-                {"id": "seg_0002", "start": 8.5, "end": 15.0, "speaker": "SPEAKER_00", "text": "Let's discuss the proposal."},
+                {"id": "seg_0000", "start": 0.0, "end": 3.5, "speaker": "SPEAKER_00", "text": "Hello."},
+                {"id": "seg_0001", "start": 4.0, "end": 8.2, "speaker": "SPEAKER_01", "text": "Hi there."},
+                {"id": "seg_0002", "start": 8.5, "end": 15.0, "speaker": "SPEAKER_00", "text": "Let's begin."},
             ],
             "language": "en",
         }
@@ -98,7 +98,7 @@ class TestTranscriptionCompletionFlow:
         assert data["metadata"]["duration_seconds"] == 15.0
         assert data["transcript"] is not None
         assert len(data["transcript"]["segments"]) == 3
-        assert data["transcript"]["segments"][0]["text"] == "Hello, thanks for joining."
+        assert data["transcript"]["segments"][0]["text"] == "Hello."
 
         # Verify job shows as completed
         job = job_queue.get_job(job_id)
@@ -114,7 +114,9 @@ class TestRetryFlow:
     """Failed transcription → retry → verify new job is created."""
 
     @patch("backend.routers.meetings.start_transcription")
-    async def test_retry_failed_transcription(self, mock_start, client, meetings_dir: Path, sample_audio: Path, sample_metadata_error: dict):
+    async def test_retry_failed_transcription(
+        self, mock_start, client, meetings_dir: Path, sample_audio: Path, sample_metadata_error: dict,
+    ):
         # Step 1: Set up a failed meeting on disk
         meeting_id = sample_metadata_error["id"]
         meeting_dir = meetings_dir / meeting_id
