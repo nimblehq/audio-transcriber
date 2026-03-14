@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import logging
 import threading
+from pathlib import Path
 
 from backend.schemas import JobStatus, MeetingMetadata, MeetingStatus
 from backend.services.job_queue import job_queue
@@ -22,6 +23,16 @@ def _get_device() -> str:
     except ImportError:
         pass
     return "cpu"
+
+
+def _is_cancelled(metadata_path: Path) -> bool:
+    """Check if the meeting has been cancelled (status is no longer PROCESSING)."""
+    try:
+        with open(metadata_path) as f:
+            meta = json.load(f)
+        return meta.get("status") != MeetingStatus.PROCESSING.value
+    except Exception:
+        return False
 
 
 def _run_transcription(meeting_id: str, job_id: str):
@@ -166,6 +177,11 @@ def _run_transcription(meeting_id: str, job_id: str):
             "language": detected_language,
         }
 
+        # Check if cancelled before saving results
+        if _is_cancelled(metadata_path):
+            logger.info("Transcription for meeting %s was cancelled, discarding results", meeting_id)
+            return
+
         # Save transcript
         transcript_path = meeting_dir / "transcript.json"
         with open(transcript_path, "w", encoding="utf-8") as f:
@@ -189,15 +205,17 @@ def _run_transcription(meeting_id: str, job_id: str):
         logger.exception("Transcription failed for meeting %s", meeting_id)
         job_queue.update_job(job_id, status=JobStatus.FAILED, error=str(e))
 
-        # Update meeting status to error
-        try:
-            with open(metadata_path) as f:
-                meta = json.load(f)
-            meta["status"] = "error"
-            with open(metadata_path, "w") as f:
-                json.dump(meta, f, ensure_ascii=False, indent=2)
-        except Exception:
-            pass
+        # Update meeting status to error (only if not already cancelled)
+        if not _is_cancelled(metadata_path):
+            try:
+                with open(metadata_path) as f:
+                    meta = json.load(f)
+                meta["status"] = "error"
+                meta["error"] = str(e)
+                with open(metadata_path, "w") as f:
+                    json.dump(meta, f, ensure_ascii=False, indent=2)
+            except Exception:
+                pass
 
 
 def start_transcription(meeting_id: str, job_id: str):

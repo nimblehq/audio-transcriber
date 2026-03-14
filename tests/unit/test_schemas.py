@@ -115,6 +115,7 @@ class TestMeetingMetadata:
         assert m.num_speakers is None
         assert m.job_id is None
         assert m.speakers == {}
+        assert m.error is None
         assert isinstance(m.created_at, datetime)
 
     def test_full_creation(self):
@@ -139,6 +140,10 @@ class TestMeetingMetadata:
         m2 = MeetingMetadata(**data)
         assert m2.id == m.id
         assert m2.title == m.title
+
+    def test_error_field(self):
+        m = MeetingMetadata(id="m1", title="Test", error="Transcription cancelled by user")
+        assert m.error == "Transcription cancelled by user"
 
     def test_from_fixture(self, sample_metadata: dict):
         m = MeetingMetadata(**sample_metadata)

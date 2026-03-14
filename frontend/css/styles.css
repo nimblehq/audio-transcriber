@@ -118,6 +118,19 @@ body {
     color: #e66;
 }
 
+.btn-cancel {
+    color: var(--danger);
+}
+
+.btn-cancel:hover {
+    color: #e66;
+}
+
+.cancel-section {
+    text-align: center;
+    margin-top: 0.5rem;
+}
+
 /* Page Header */
 .page-header {
     display: flex;

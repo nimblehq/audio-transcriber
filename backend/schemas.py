@@ -58,6 +58,7 @@ class MeetingMetadata(BaseModel):
     num_speakers: int | None = None
     job_id: str | None = None
     speakers: dict[str, str] = Field(default_factory=dict)
+    error: str | None = None
 
 
 class MeetingUpdate(BaseModel):

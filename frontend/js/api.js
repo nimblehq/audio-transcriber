@@ -36,6 +36,12 @@ const API = {
         return res.json();
     },
 
+    async cancelTranscription(id) {
+        const res = await fetch(`/api/meetings/${id}/cancel`, { method: 'POST' });
+        if (!res.ok) throw new Error('Failed to cancel transcription');
+        return res.json();
+    },
+
     async retryTranscription(id) {
         const res = await fetch(`/api/meetings/${id}/retry`, { method: 'POST' });
         if (!res.ok) throw new Error('Failed to retry transcription');
