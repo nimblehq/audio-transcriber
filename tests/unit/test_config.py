@@ -3,6 +3,8 @@ from __future__ import annotations
 import importlib
 from pathlib import Path
 
+import pytest
+
 
 class TestConfigDefaults:
     def test_default_whisper_model(self):
@@ -42,14 +44,22 @@ class TestConfigDefaults:
 
     def test_hf_token_default_empty(self, monkeypatch):
         monkeypatch.delenv("HF_TOKEN", raising=False)
-        importlib.reload(__import__("config"))
         import config
 
+        importlib.reload(config)
         # When no HF_TOKEN is set, it should default to empty string
         assert isinstance(config.HF_TOKEN, str)
 
 
 class TestConfigEnvOverrides:
+    @pytest.fixture(autouse=True)
+    def _restore_config(self):
+        """Restore config module to default state after each test."""
+        yield
+        import config
+
+        importlib.reload(config)
+
     def test_custom_data_dir(self, monkeypatch, tmp_path: Path):
         custom_dir = tmp_path / "custom_data"
         monkeypatch.setenv("DATA_DIR", str(custom_dir))

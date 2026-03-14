@@ -3,6 +3,7 @@ from __future__ import annotations
 from datetime import datetime
 
 import pytest
+from pydantic import ValidationError
 
 from backend.schemas import (
     JobInfo,
@@ -90,7 +91,7 @@ class TestTranscriptSegment:
         }
 
     def test_missing_required_field(self):
-        with pytest.raises(Exception):
+        with pytest.raises(ValidationError):
             TranscriptSegment(id="seg-1", start=0.0, end=1.0, speaker="SPEAKER_00")
 
 
