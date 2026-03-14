@@ -28,6 +28,7 @@ class JobStatus(str, Enum):
 
 class JobStage(str, Enum):
     UPLOADING = "uploading"
+    PREPROCESSING = "preprocessing"
     TRANSCRIBING = "transcribing"
     ALIGNING = "aligning"
     DIARIZING = "diarizing"

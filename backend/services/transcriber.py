@@ -39,12 +39,20 @@ def _run_transcription(meeting_id: str, job_id: str):
     """Run transcription in a background thread."""
     meeting_dir = MEETINGS_DIR / meeting_id
     metadata_path = meeting_dir / "metadata.json"
+    preprocessed_path = None
 
     try:
         with open(metadata_path) as f:
             metadata = MeetingMetadata(**json.load(f))
 
         audio_path = meeting_dir / metadata.audio_filename
+
+        if metadata.preprocess_audio:
+            job_queue.update_job(job_id, status=JobStatus.PROCESSING, stage="preprocessing", progress=5)
+            from backend.services.audio_preprocessor import preprocess_audio
+
+            preprocessed_path = preprocess_audio(audio_path)
+            audio_path = preprocessed_path
 
         job_queue.update_job(job_id, status=JobStatus.PROCESSING, stage="transcribing", progress=10)
 
@@ -201,7 +209,12 @@ def _run_transcription(meeting_id: str, job_id: str):
 
         job_queue.update_job(job_id, status=JobStatus.COMPLETED, progress=100, stage="done")
 
+        if preprocessed_path and preprocessed_path.exists():
+            preprocessed_path.unlink()
+
     except Exception as e:
+        if preprocessed_path and preprocessed_path.exists():
+            preprocessed_path.unlink()
         logger.exception("Transcription failed for meeting %s", meeting_id)
         job_queue.update_job(job_id, status=JobStatus.FAILED, error=str(e))
 
