@@ -29,8 +29,18 @@ async function loadMeetingView(container, meetingId) {
                     </div>
                 </div>
 
-                ${isProcessing ? `<div id="progress-section" class="progress-section"></div>` : ''}
-                ${isError ? `<div class="error-state">Transcription failed. <button class="btn btn-text" onclick="retryTranscription('${meetingId}')">Retry</button></div>` : ''}
+                ${isProcessing ? `
+                    <div id="progress-section" class="progress-section"></div>
+                    <div class="cancel-section">
+                        <button class="btn btn-text btn-cancel" onclick="handleCancelTranscription('${meetingId}')">Cancel transcription</button>
+                    </div>
+                ` : ''}
+                ${isError ? `
+                    <div class="error-state">
+                        ${meta.error ? escapeHtml(meta.error) : 'Transcription failed.'}
+                        <button class="btn btn-text" onclick="retryTranscription('${meetingId}')">Retry</button>
+                    </div>
+                ` : ''}
 
                 ${!isProcessing && !isError ? `
                     <div class="audio-player" id="audio-player">
@@ -353,6 +363,17 @@ async function retryTranscription(meetingId) {
         App.navigate(`/meetings/${meetingId}`);
     } catch (err) {
         showToast(err.message, 'error');
+    }
+}
+
+async function handleCancelTranscription(meetingId) {
+    if (!confirm('Are you sure? This will stop the current transcription.')) return;
+    try {
+        await API.cancelTranscription(meetingId);
+        showToast('Transcription cancelled');
+        App.navigate(`/meetings/${meetingId}`);
+    } catch (err) {
+        showToast('Failed to cancel transcription', 'error');
     }
 }
 
