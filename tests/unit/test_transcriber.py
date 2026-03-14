@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import json
 import struct
-import threading
 import wave
 from pathlib import Path
 from unittest.mock import MagicMock, patch
@@ -134,12 +133,14 @@ class TestRunTranscription:
         mock_torch.cuda.is_available.return_value = False
 
         mock_diarize_pipeline = MagicMock()
-        mock_assign_speakers = MagicMock(return_value={
-            "segments": [
-                {"start": 0.0, "end": 1.5, "text": " Hello there.", "speaker": "SPEAKER_00"},
-                {"start": 1.5, "end": 3.0, "text": " How are you?", "speaker": "SPEAKER_01"},
-            ],
-        })
+        mock_assign_speakers = MagicMock(
+            return_value={
+                "segments": [
+                    {"start": 0.0, "end": 1.5, "text": " Hello there.", "speaker": "SPEAKER_00"},
+                    {"start": 1.5, "end": 3.0, "text": " How are you?", "speaker": "SPEAKER_01"},
+                ],
+            }
+        )
 
         return mock_whisperx, mock_torch, mock_diarize_pipeline, mock_assign_speakers
 
@@ -157,16 +158,19 @@ class TestRunTranscription:
         with (
             patch("backend.services.transcriber.MEETINGS_DIR", meetings_dir),
             patch("backend.services.transcriber.job_queue", queue),
-            patch.dict("sys.modules", {
-                "whisperx": mock_whisperx,
-                "torch": mock_torch,
-                "whisperx.diarize": MagicMock(
-                    DiarizationPipeline=mock_diarize_cls,
-                    assign_word_speakers=mock_assign,
-                ),
-                "functools": __import__("functools"),
-                "warnings": __import__("warnings"),
-            }),
+            patch.dict(
+                "sys.modules",
+                {
+                    "whisperx": mock_whisperx,
+                    "torch": mock_torch,
+                    "whisperx.diarize": MagicMock(
+                        DiarizationPipeline=mock_diarize_cls,
+                        assign_word_speakers=mock_assign,
+                    ),
+                    "functools": __import__("functools"),
+                    "warnings": __import__("warnings"),
+                },
+            ),
         ):
             from backend.services.transcriber import _run_transcription
 
@@ -207,16 +211,19 @@ class TestRunTranscription:
         with (
             patch("backend.services.transcriber.MEETINGS_DIR", meetings_dir),
             patch("backend.services.transcriber.job_queue", queue),
-            patch.dict("sys.modules", {
-                "whisperx": mock_whisperx,
-                "torch": mock_torch,
-                "whisperx.diarize": MagicMock(
-                    DiarizationPipeline=mock_diarize_cls,
-                    assign_word_speakers=mock_assign,
-                ),
-                "functools": __import__("functools"),
-                "warnings": __import__("warnings"),
-            }),
+            patch.dict(
+                "sys.modules",
+                {
+                    "whisperx": mock_whisperx,
+                    "torch": mock_torch,
+                    "whisperx.diarize": MagicMock(
+                        DiarizationPipeline=mock_diarize_cls,
+                        assign_word_speakers=mock_assign,
+                    ),
+                    "functools": __import__("functools"),
+                    "warnings": __import__("warnings"),
+                },
+            ),
         ):
             from backend.services.transcriber import _run_transcription
 
@@ -243,13 +250,16 @@ class TestRunTranscription:
         with (
             patch("backend.services.transcriber.MEETINGS_DIR", meetings_dir),
             patch("backend.services.transcriber.job_queue", queue),
-            patch.dict("sys.modules", {
-                "whisperx": mock_whisperx,
-                "torch": mock_torch,
-                "whisperx.diarize": MagicMock(),
-                "functools": __import__("functools"),
-                "warnings": __import__("warnings"),
-            }),
+            patch.dict(
+                "sys.modules",
+                {
+                    "whisperx": mock_whisperx,
+                    "torch": mock_torch,
+                    "whisperx.diarize": MagicMock(),
+                    "functools": __import__("functools"),
+                    "warnings": __import__("warnings"),
+                },
+            ),
         ):
             from backend.services.transcriber import _run_transcription
 
@@ -289,16 +299,19 @@ class TestRunTranscription:
         with (
             patch("backend.services.transcriber.MEETINGS_DIR", meetings_dir),
             patch("backend.services.transcriber.job_queue", queue),
-            patch.dict("sys.modules", {
-                "whisperx": mock_whisperx,
-                "torch": mock_torch,
-                "whisperx.diarize": MagicMock(
-                    DiarizationPipeline=mock_diarize_cls,
-                    assign_word_speakers=mock_assign,
-                ),
-                "functools": __import__("functools"),
-                "warnings": __import__("warnings"),
-            }),
+            patch.dict(
+                "sys.modules",
+                {
+                    "whisperx": mock_whisperx,
+                    "torch": mock_torch,
+                    "whisperx.diarize": MagicMock(
+                        DiarizationPipeline=mock_diarize_cls,
+                        assign_word_speakers=mock_assign,
+                    ),
+                    "functools": __import__("functools"),
+                    "warnings": __import__("warnings"),
+                },
+            ),
         ):
             from backend.services.transcriber import _run_transcription
 
@@ -328,13 +341,16 @@ class TestRunTranscription:
         with (
             patch("backend.services.transcriber.MEETINGS_DIR", meetings_dir),
             patch("backend.services.transcriber.job_queue", queue),
-            patch.dict("sys.modules", {
-                "whisperx": mock_whisperx,
-                "torch": mock_torch,
-                "whisperx.diarize": MagicMock(),
-                "functools": __import__("functools"),
-                "warnings": __import__("warnings"),
-            }),
+            patch.dict(
+                "sys.modules",
+                {
+                    "whisperx": mock_whisperx,
+                    "torch": mock_torch,
+                    "whisperx.diarize": MagicMock(),
+                    "functools": __import__("functools"),
+                    "warnings": __import__("warnings"),
+                },
+            ),
         ):
             from backend.services.transcriber import _run_transcription
 
@@ -354,6 +370,7 @@ class TestStartTranscription:
 
             # Give the thread a moment to start
             import time
+
             time.sleep(0.05)
 
             mock_run.assert_called_once_with("m1", "j1")
