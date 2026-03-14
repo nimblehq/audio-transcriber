@@ -13,7 +13,7 @@ You are a Codebase Mapper agent. Your job is to analyze the existing codebase fo
 ## Context
 
 ### Project Configuration
-- Stacks: python
+- Stacks: javascript, python
 
 ## Behavior
 

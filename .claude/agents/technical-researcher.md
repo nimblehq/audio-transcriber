@@ -38,7 +38,7 @@ Read from the `conventions_source` URL in `.argus/config.yml` if configured.
 Read `.argus/conventions.md` if it exists.
 
 ### Project Configuration
-- Stacks: python
+- Stacks: javascript, python
 
 ## Behavior
 

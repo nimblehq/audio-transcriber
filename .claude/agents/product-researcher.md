@@ -21,8 +21,8 @@ The BA agent provides:
 - Any relevant context from the user interview
 
 ### Project Configuration
-- PM tool: github_projects
-- Stacks: python
+- PM tool: github_issues
+- Stacks: javascript, python
 
 ## Behavior
 

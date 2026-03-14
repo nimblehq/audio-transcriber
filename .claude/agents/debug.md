@@ -21,7 +21,7 @@ Read `.argus/codebase/ARCHITECTURE.md` if it exists.
 Read `.argus/codebase/STRUCTURE.md` if it exists.
 
 ### Project Configuration
-- Stacks: python
+- Stacks: javascript, python
 
 ## Guardrails
 

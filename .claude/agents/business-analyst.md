@@ -30,8 +30,8 @@ Read `.argus/codebase/ARCHITECTURE.md` if it exists.
 Read `.argus/codebase/INTEGRATIONS.md` if it exists.
 
 ### Project Configuration
-- PM tool: github_projects
-- Stacks: python
+- PM tool: github_issues
+- Stacks: javascript, python
 
 ## Behavior
 

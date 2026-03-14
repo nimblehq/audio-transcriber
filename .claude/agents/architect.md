@@ -65,6 +65,91 @@ Read `.argus/codebase/CONCERNS.md` if it exists.
 
 
 **Layer 1B — Stack-Specific Best Practices:**
+# JavaScript Best Practices
+
+## Architecture
+
+- Organize code into clear directories: `adapters/` (network), `components/` (UI), `helpers/` (utilities), `screens/` (pages), `services/` (business logic), `config/` (environment)
+- Create one adapter per API resource — extend a base adapter for shared config (headers, auth)
+- Use the constructor pattern for components: `_bind()`, `_setup()`, `_addEventListeners()` as private methods
+- Create one initializer file per component, export all through `initializers/index.js`
+- Manifest files include only initializers and screens (in that order)
+- Use ES6 classes over prototype-based patterns
+- Use `const` by default, `let` when reassignment is needed, never `var`
+- Prefer strict equality (`===` / `!==`) everywhere — only use `==` for intentional `null`/`undefined` coalescing
+- Use optional chaining (`?.`) and nullish coalescing (`??`) instead of manual truthy checks or lodash `_.get`
+- Use `structuredClone()` for deep copies — avoid JSON parse/stringify round-trips or spread-based shallow clones
+- Keep functions small and single-purpose — extract helpers when a function exceeds ~30 lines
+- Use early returns to reduce nesting depth and improve readability
+- Prefer named exports over default exports for better refactoring and tree-shaking support
+- Use native `#private` class fields over underscore conventions when runtime privacy is needed
+
+## Performance
+
+- Favor `map()`, `filter()`, `reduce()` over traditional `for` loops for clarity and optimization
+- Use template literals over string concatenation for readability and performance
+- Use arrow functions for callbacks and function expressions
+- Import only what is needed — avoid importing entire modules when destructured imports are available
+- Group imports by: built-in modules, external packages, internal modules (alphabetical within each group)
+- Never block the event loop — offload CPU-intensive work to Web Workers or worker threads in Node.js
+- Minimize DOM reads/writes and batch DOM mutations to avoid layout thrashing
+- Use `requestAnimationFrame` for visual updates instead of `setTimeout`/`setInterval`
+- Avoid memory leaks: remove event listeners on teardown, nullify references in closures, use `WeakRef`/`WeakMap` for caches
+- Use `AbortController` to cancel in-flight fetch requests and avoid stale responses
+- Prefer `for...of` over `forEach` when early exit (`break`/`return`) is needed
+- Debounce or throttle high-frequency events (scroll, resize, input) to limit unnecessary computation
+
+## Security
+
+- Use strict equality (`===` and `!==`) except when intentionally comparing against `null`/`undefined`
+- Sanitize all user input before DOM insertion — never use `innerHTML` with untrusted content
+- Validate and sanitize URL inputs before using in redirects or link hrefs
+- Store secrets in environment variables, never in client-side code
+- Use Content Security Policy headers to prevent XSS attacks
+- Prevent prototype pollution: freeze prototypes on critical objects, validate JSON keys, avoid recursive merge without safeguards
+- Write ReDoS-safe regular expressions — avoid nested quantifiers and unbounded repetition on overlapping patterns
+- Never use `eval()`, `Function()` constructor, or `setTimeout`/`setInterval` with string arguments
+- Validate and sanitize all server-side inputs — never trust client-side validation alone
+- Use `Object.create(null)` for lookup maps to avoid prototype chain interference
+- Set `HttpOnly`, `Secure`, and `SameSite` flags on cookies to mitigate XSS and CSRF
+- Pin dependency versions and audit regularly with `npm audit` to catch known vulnerabilities
+
+## Testing
+
+- Use Cypress for E2E testing with TypeScript support
+- Configure `baseUrl` in Cypress config to avoid repeating URLs across tests
+- Name test files with `.spec.ts` suffix in camelCase
+- Use `data-test-id` attributes for selectors instead of CSS classes or HTML structure
+- Use `cy.intercept()` (v6.0+) to stub network requests with fixtures
+- Create reusable custom commands for repeated test workflows
+- Write `describe` blocks with the filename, `context` blocks with "when/given", and `it` blocks in imperative mood without "should"
+- Test async code with `async`/`await` — avoid `.then()` chains in tests for readability
+- Mock timers (`jest.useFakeTimers` or `vi.useFakeTimers`) when testing `setTimeout`/`setInterval` logic
+- Test error paths and edge cases, not just happy paths — verify thrown errors, rejected promises, and boundary inputs
+- Keep tests isolated: no shared mutable state between test cases, reset mocks in `beforeEach`/`afterEach`
+- Aim for deterministic tests — avoid reliance on real time, network, or random values
+
+## Common Anti-Patterns
+
+- `innerHTML with user content` → Use textContent or sanitize with DOMPurify (Critical)
+- `unhandled promise rejections` → Always attach `.catch()` or use `try`/`catch` in async functions — unhandled rejections crash Node.js (Critical)
+- `eval or Function constructor` → Use safe alternatives like JSON.parse or AST-based transforms (Critical)
+- `unbounded recursive merge on user input` → Validate keys and use `Object.create(null)` to prevent prototype pollution (Critical)
+- `var declarations` → Use `const` or `let` for block scoping and clarity (Major)
+- `== for equality checks` → Use `===` to avoid type coercion bugs (Major)
+- `floating promises` → Always `await` or return promises — a missing `await` silently swallows errors (Major)
+- `callback hell` → Refactor nested callbacks to async/await or named functions (Major)
+- `memory leaks from unremoved listeners` → Remove event listeners in cleanup/teardown lifecycle hooks (Major)
+- `network calls in components` → Extract to adapter classes with base adapter pattern (Major)
+- `string concatenation with +` → Use template literals for readability (Minor)
+- `for loops for array transformation` → Use `map`, `filter`, `reduce` for declarative code (Minor)
+- `typeof null === 'object'` → Guard with explicit `value !== null` check before typeof (Minor)
+- `CSS/HTML selectors in tests` → Use data-test-id attributes for resilient test selectors (Minor)
+- `missing trailing commas` → Add trailing commas in multi-line arrays/objects for cleaner diffs (Nit)
+- `_singleUnderscore private without enforcement` → Document intent but consider WeakMap or # private fields (Nit)
+- `missing semicolons` → Include semicolons at the end of each statement (Nit)
+
+
 # Python Best Practices
 
 ## Architecture
@@ -147,7 +232,7 @@ Read `.argus/conventions.md` if it exists.
 Read the spec file referenced in the story.
 
 ### Project Configuration
-- Stacks: python
+- Stacks: javascript, python
 - Test coverage target: 80%
 
 ## Behavior
@@ -157,26 +242,30 @@ Read the spec file referenced in the story.
 1. Read all changed files in the feature branch
 2. Load all four convention layers
 3. For each changed file, check against conventions from Layer 1 through Layer 4
-4. Categorize each finding by severity
-5. For Critical and Major issues: fix directly on the branch
-6. For Minor issues: fix if the fix is unambiguous, comment otherwise
-7. For Nit issues: comment only
-8. When layers conflict, follow the higher layer and flag the conflict
+4. Categorize each finding by severity and act per the "Review Severity Levels" table below
+5. Before making any commits, follow the "Commit Rules" below
+6. When layers conflict, follow the higher layer and flag the conflict
 
 ## Review Severity Levels
 
 | Severity | Behavior | Examples |
-|----------|----------|----------|
-| **Critical** | Blocks merge. Fix automatically if possible, otherwise flag for human. | Security vulnerabilities, data loss risks, broken functionality |
-| **Major** | Fix automatically. | Convention violations, performance anti-patterns, missing error handling |
-| **Minor** | Fix automatically if trivial, comment otherwise. | Code organization, naming suggestions, minor style |
-| **Nit** | Comment only. Do not fix. | Style preferences, alternative approaches, cosmetic |
+| -------- | -------- | -------- |
+| **Critical** | Blocks merge until resolved. Auto-fix if possible, otherwise flag for human. | Security vulnerabilities, data loss risks, broken functionality |
+| **Major** | Auto-fix. | Convention violations, performance anti-patterns, missing error handling |
+| **Minor** | Auto-fix if unambiguous, comment otherwise. | Code organization, naming suggestions, minor style |
+| **Nit** | Comment only. Never blocks merge or auto-fix. | Style preferences, alternative approaches, cosmetic |
 
-### Rules
-- Critical issues must be resolved before PR can merge
-- Major issues are fixed directly on the branch (push commits)
-- Minor issues are fixed only when the fix is unambiguous
-- Nit comments are informational — never block merge or auto-fix
+> All auto-fixes are pushed as commits directly to the branch, following the "Commit Rules".
+
+
+## Commit Rules
+
+- Prefix all commits with `[ghi-{story-id}]`
+- Present tense, capitalize first word, no period
+- Atomic commits — one logical change per commit
+- If you find yourself using "and" in the message, split into separate commits
+- Single-line title only — no body, no description
+- Never add `Co-Authored-By` trailers to commits
 
 
 ### Conflict Resolution
