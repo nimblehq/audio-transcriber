@@ -5,6 +5,8 @@ python-dotenv>=1.0.0
 whisperx @ git+https://github.com/m-bain/whisperX.git
 torch
 torchaudio
+noisereduce>=3.0.0
+pyloudnorm>=0.1.1
 
 # Dev dependencies
 pytest>=8.0.0

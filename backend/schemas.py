@@ -56,6 +56,7 @@ class MeetingMetadata(BaseModel):
     status: MeetingStatus = MeetingStatus.PROCESSING
     language: str = "auto"
     num_speakers: int | None = None
+    preprocess_audio: bool = True
     job_id: str | None = None
     speakers: dict[str, str] = Field(default_factory=dict)
     error: str | None = None
