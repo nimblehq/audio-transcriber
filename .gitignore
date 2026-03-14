@@ -17,6 +17,7 @@ __pycache__/
 *.m4a
 *.mp3
 *.wav
+!tests/fixtures/sample.wav
 *.flac
 *.ogg
 *.aac
