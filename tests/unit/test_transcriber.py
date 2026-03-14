@@ -40,6 +40,7 @@ def _create_meeting_on_disk(
         "audio_filename": audio_filename,
         "language": language,
         "num_speakers": num_speakers,
+        "preprocess_audio": False,
         "created_at": "2026-03-14T00:00:00",
         "speakers": {},
     }

@@ -132,6 +132,30 @@ class TestCreateMeeting:
         assert (meeting_dir / "metadata.json").exists()
         assert (meeting_dir / "audio.wav").exists()
 
+    @patch("backend.routers.meetings.start_transcription")
+    async def test_preprocess_audio_defaults_to_true(self, mock_start, client, sample_audio: Path, meetings_dir: Path):
+        with open(sample_audio, "rb") as f:
+            res = await client.post(
+                "/api/meetings",
+                files={"file": ("test.wav", f, "audio/wav")},
+                data={"title": "Preprocess Test"},
+            )
+        meeting_id = res.json()["meeting_id"]
+        meta = json.loads((meetings_dir / meeting_id / "metadata.json").read_text())
+        assert meta["preprocess_audio"] is True
+
+    @patch("backend.routers.meetings.start_transcription")
+    async def test_preprocess_audio_can_be_disabled(self, mock_start, client, sample_audio: Path, meetings_dir: Path):
+        with open(sample_audio, "rb") as f:
+            res = await client.post(
+                "/api/meetings",
+                files={"file": ("test.wav", f, "audio/wav")},
+                data={"title": "No Preprocess", "preprocess_audio": "false"},
+            )
+        meeting_id = res.json()["meeting_id"]
+        meta = json.loads((meetings_dir / meeting_id / "metadata.json").read_text())
+        assert meta["preprocess_audio"] is False
+
 
 class TestGetMeeting:
     async def test_existing_meeting(self, client, populated_meeting):
