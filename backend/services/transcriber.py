@@ -209,12 +209,7 @@ def _run_transcription(meeting_id: str, job_id: str):
 
         job_queue.update_job(job_id, status=JobStatus.COMPLETED, progress=100, stage="done")
 
-        if preprocessed_path and preprocessed_path.exists():
-            preprocessed_path.unlink()
-
     except Exception as e:
-        if preprocessed_path and preprocessed_path.exists():
-            preprocessed_path.unlink()
         logger.exception("Transcription failed for meeting %s", meeting_id)
         job_queue.update_job(job_id, status=JobStatus.FAILED, error=str(e))
 
@@ -229,6 +224,10 @@ def _run_transcription(meeting_id: str, job_id: str):
                     json.dump(meta, f, ensure_ascii=False, indent=2)
             except Exception:
                 pass
+
+    finally:
+        if preprocessed_path and preprocessed_path.exists():
+            preprocessed_path.unlink()
 
 
 def start_transcription(meeting_id: str, job_id: str):
