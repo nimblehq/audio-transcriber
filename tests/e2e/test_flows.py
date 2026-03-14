@@ -5,9 +5,7 @@ import shutil
 from pathlib import Path
 from unittest.mock import patch
 
-import pytest
-
-from backend.schemas import JobStatus, MeetingStatus
+from backend.schemas import JobStatus
 from backend.services.job_queue import job_queue
 
 
