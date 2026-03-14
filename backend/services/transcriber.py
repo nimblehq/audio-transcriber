@@ -134,11 +134,19 @@ def _run_transcription(meeting_id: str, job_id: str):
             "ta",
             "id",
             "ms",
+            "th",
+        }
+
+        CUSTOM_ALIGN_MODELS = {
+            "th": "airesearch/wav2vec2-large-xlsr-53-th",
         }
 
         if detected_language in ALIGNMENT_LANGUAGES:
             job_queue.update_job(job_id, stage="aligning", progress=50)
-            model_a, align_metadata = whisperx.load_align_model(language_code=detected_language, device=device)
+            align_model_name = CUSTOM_ALIGN_MODELS.get(detected_language)
+            model_a, align_metadata = whisperx.load_align_model(
+                language_code=detected_language, device=device, model_name=align_model_name
+            )
             result = whisperx.align(
                 result["segments"],
                 model_a,

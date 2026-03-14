@@ -362,6 +362,124 @@ class TestRunTranscription:
         assert "No speech detected" in updated_job.error
 
 
+    @patch("backend.services.transcriber.WHISPER_BATCH_SIZE", 16)
+    @patch("backend.services.transcriber.WHISPER_MODEL", "large-v3")
+    @patch("backend.services.transcriber.WHISPER_DEVICE", "cpu")
+    @patch("backend.services.transcriber.HF_TOKEN", "")
+    def test_thai_alignment_uses_custom_model(self, tmp_path: Path):
+        mock_whisperx, mock_torch, mock_diarize_cls, mock_assign = self._build_mocks()
+        mock_model = mock_whisperx.load_model.return_value
+        mock_model.transcribe.return_value["language"] = "th"
+
+        queue = JobQueue()
+        meetings_dir = tmp_path / "meetings"
+        _create_meeting_on_disk(meetings_dir, language="auto")
+        job = queue.create_job("test-meeting")
+
+        with (
+            patch("backend.services.transcriber.MEETINGS_DIR", meetings_dir),
+            patch("backend.services.transcriber.job_queue", queue),
+            patch.dict(
+                "sys.modules",
+                {
+                    "whisperx": mock_whisperx,
+                    "torch": mock_torch,
+                    "whisperx.diarize": MagicMock(
+                        DiarizationPipeline=mock_diarize_cls,
+                        assign_word_speakers=mock_assign,
+                    ),
+                    "functools": __import__("functools"),
+                    "warnings": __import__("warnings"),
+                },
+            ),
+        ):
+            from backend.services.transcriber import _run_transcription
+
+            _run_transcription("test-meeting", job.id)
+
+        mock_whisperx.load_align_model.assert_called_once_with(
+            language_code="th",
+            device="cpu",
+            model_name="airesearch/wav2vec2-large-xlsr-53-th",
+        )
+
+    @patch("backend.services.transcriber.WHISPER_BATCH_SIZE", 16)
+    @patch("backend.services.transcriber.WHISPER_MODEL", "large-v3")
+    @patch("backend.services.transcriber.WHISPER_DEVICE", "cpu")
+    @patch("backend.services.transcriber.HF_TOKEN", "")
+    def test_unsupported_language_skips_alignment(self, tmp_path: Path):
+        mock_whisperx, mock_torch, mock_diarize_cls, mock_assign = self._build_mocks()
+        mock_model = mock_whisperx.load_model.return_value
+        mock_model.transcribe.return_value["language"] = "xx"
+
+        queue = JobQueue()
+        meetings_dir = tmp_path / "meetings"
+        _create_meeting_on_disk(meetings_dir, language="auto")
+        job = queue.create_job("test-meeting")
+
+        with (
+            patch("backend.services.transcriber.MEETINGS_DIR", meetings_dir),
+            patch("backend.services.transcriber.job_queue", queue),
+            patch.dict(
+                "sys.modules",
+                {
+                    "whisperx": mock_whisperx,
+                    "torch": mock_torch,
+                    "whisperx.diarize": MagicMock(
+                        DiarizationPipeline=mock_diarize_cls,
+                        assign_word_speakers=mock_assign,
+                    ),
+                    "functools": __import__("functools"),
+                    "warnings": __import__("warnings"),
+                },
+            ),
+        ):
+            from backend.services.transcriber import _run_transcription
+
+            _run_transcription("test-meeting", job.id)
+
+        mock_whisperx.load_align_model.assert_not_called()
+
+    @patch("backend.services.transcriber.WHISPER_BATCH_SIZE", 16)
+    @patch("backend.services.transcriber.WHISPER_MODEL", "large-v3")
+    @patch("backend.services.transcriber.WHISPER_DEVICE", "cpu")
+    @patch("backend.services.transcriber.HF_TOKEN", "")
+    def test_english_alignment_uses_default_model(self, tmp_path: Path):
+        mock_whisperx, mock_torch, mock_diarize_cls, mock_assign = self._build_mocks()
+
+        queue = JobQueue()
+        meetings_dir = tmp_path / "meetings"
+        _create_meeting_on_disk(meetings_dir, language="auto")
+        job = queue.create_job("test-meeting")
+
+        with (
+            patch("backend.services.transcriber.MEETINGS_DIR", meetings_dir),
+            patch("backend.services.transcriber.job_queue", queue),
+            patch.dict(
+                "sys.modules",
+                {
+                    "whisperx": mock_whisperx,
+                    "torch": mock_torch,
+                    "whisperx.diarize": MagicMock(
+                        DiarizationPipeline=mock_diarize_cls,
+                        assign_word_speakers=mock_assign,
+                    ),
+                    "functools": __import__("functools"),
+                    "warnings": __import__("warnings"),
+                },
+            ),
+        ):
+            from backend.services.transcriber import _run_transcription
+
+            _run_transcription("test-meeting", job.id)
+
+        mock_whisperx.load_align_model.assert_called_once_with(
+            language_code="en",
+            device="cpu",
+            model_name=None,
+        )
+
+
 class TestStartTranscription:
     def test_spawns_daemon_thread(self):
         with patch("backend.services.transcriber._run_transcription") as mock_run:
