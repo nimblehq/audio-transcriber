@@ -24,11 +24,16 @@ def recover_stuck_meetings() -> list[str]:
         if metadata.get("status") != "processing":
             continue
 
-        metadata["status"] = "error"
-        metadata["error"] = "Transcription interrupted by app restart"
-        metadata_path.write_text(json.dumps(metadata, indent=2))
-
         meeting_id = metadata.get("id", metadata_path.parent.name)
+
+        try:
+            metadata["status"] = "error"
+            metadata["error"] = "Transcription interrupted by app restart"
+            metadata_path.write_text(json.dumps(metadata, indent=2))
+        except OSError:
+            logger.exception("Failed to update metadata for meeting: %s", meeting_id)
+            continue
+
         recovered.append(meeting_id)
         logger.info("Recovered stuck meeting: %s", meeting_id)
 

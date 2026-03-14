@@ -65,7 +65,7 @@ class TestRecoverStuckMeetings:
         with patch("backend.services.recovery.MEETINGS_DIR", meetings_dir):
             recovered = recover_stuck_meetings()
 
-        assert recovered == ["proc1"]
+        assert sorted(recovered) == ["proc1"]
 
     def test_empty_meetings_dir(self, meetings_dir):
         with patch("backend.services.recovery.MEETINGS_DIR", meetings_dir):
