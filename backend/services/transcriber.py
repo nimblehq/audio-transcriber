@@ -205,15 +205,17 @@ def _run_transcription(meeting_id: str, job_id: str):
         logger.exception("Transcription failed for meeting %s", meeting_id)
         job_queue.update_job(job_id, status=JobStatus.FAILED, error=str(e))
 
-        # Update meeting status to error
-        try:
-            with open(metadata_path) as f:
-                meta = json.load(f)
-            meta["status"] = "error"
-            with open(metadata_path, "w") as f:
-                json.dump(meta, f, ensure_ascii=False, indent=2)
-        except Exception:
-            pass
+        # Update meeting status to error (only if not already cancelled)
+        if not _is_cancelled(metadata_path):
+            try:
+                with open(metadata_path) as f:
+                    meta = json.load(f)
+                meta["status"] = "error"
+                meta["error"] = str(e)
+                with open(metadata_path, "w") as f:
+                    json.dump(meta, f, ensure_ascii=False, indent=2)
+            except Exception:
+                pass
 
 
 def start_transcription(meeting_id: str, job_id: str):

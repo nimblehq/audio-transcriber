@@ -3,9 +3,6 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-import pytest
-
-from backend.schemas import MeetingMetadata, MeetingStatus
 from backend.services.transcriber import _is_cancelled
 
 

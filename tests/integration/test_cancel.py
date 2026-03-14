@@ -88,3 +88,4 @@ class TestCancelEndpoint:
         meeting_res = await client.get(f"/api/meetings/{processing_meeting}")
         meta = meeting_res.json()["metadata"]
         assert meta["status"] == "processing"
+        assert meta.get("error") is None
