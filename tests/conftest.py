@@ -2,12 +2,23 @@ from __future__ import annotations
 
 import json
 import shutil
+import struct
+import wave
 from pathlib import Path
 
 import pytest
 from httpx import ASGITransport, AsyncClient
 
 FIXTURES_DIR = Path(__file__).parent / "fixtures"
+
+
+def _create_silence_wav(path: Path) -> None:
+    """Create a minimal valid WAV file (~76 bytes, 1ms silence)."""
+    with wave.open(str(path), "wb") as f:
+        f.setnchannels(1)
+        f.setsampwidth(2)
+        f.setframerate(16000)
+        f.writeframes(struct.pack("<" + "h" * 16, *([0] * 16)))
 
 
 @pytest.fixture
@@ -52,9 +63,11 @@ async def client(data_dir: Path) -> AsyncClient:
 
 
 @pytest.fixture
-def sample_audio() -> Path:
-    """Path to the minimal WAV fixture file."""
-    return FIXTURES_DIR / "sample.wav"
+def sample_audio(tmp_path: Path) -> Path:
+    """Generate a minimal WAV file in tmp_path."""
+    wav_path = tmp_path / "sample.wav"
+    _create_silence_wav(wav_path)
+    return wav_path
 
 
 @pytest.fixture
