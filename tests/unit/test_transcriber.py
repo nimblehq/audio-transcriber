@@ -361,7 +361,6 @@ class TestRunTranscription:
         assert updated_job.status == JobStatus.FAILED
         assert "No speech detected" in updated_job.error
 
-
     @patch("backend.services.transcriber.WHISPER_BATCH_SIZE", 16)
     @patch("backend.services.transcriber.WHISPER_MODEL", "large-v3")
     @patch("backend.services.transcriber.WHISPER_DEVICE", "cpu")
