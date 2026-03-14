@@ -1,5 +1,5 @@
 {
   "devDependencies": {
-    "argus-monorepo": "github:nimblehq/argus#feature/gh-67-python-stack"
+    "argus-monorepo": "github:nimblehq/argus#develop"
   }
 }

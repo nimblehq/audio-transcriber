@@ -94,5 +94,3 @@ class JobInfo(BaseModel):
 class SegmentSpeakerUpdate(BaseModel):
     segment_id: str
     speaker_name: str
-
-

@@ -22,7 +22,7 @@
 ## Project Conventions
 
 - **No build step** — no transpilation, bundling, or minification
-- **No linter/formatter** — no ESLint, Prettier, Black, or Ruff configured
+- **Linter/Formatter:** Ruff (`ruff check` + `ruff format`) for Python, configured in `pyproject.toml`. No frontend linter/formatter
 - **No type checking** — no mypy or TypeScript
 - **Git:** Gitflow branching model, `develop` as main branch
 - **Commits:** Conventional-style commit messages

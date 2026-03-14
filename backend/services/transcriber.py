@@ -3,7 +3,6 @@ from __future__ import annotations
 import json
 import logging
 import threading
-from pathlib import Path
 
 from backend.schemas import JobStatus, MeetingMetadata, MeetingStatus
 from backend.services.job_queue import job_queue
@@ -17,6 +16,7 @@ def _get_device() -> str:
         return WHISPER_DEVICE
     try:
         import torch
+
         if torch.cuda.is_available():
             return "cuda"
     except ImportError:
@@ -39,18 +39,20 @@ def _run_transcription(meeting_id: str, job_id: str):
 
         # Import heavy deps only when needed
         import warnings
+
         warnings.filterwarnings("ignore", message="Model was trained with")
         warnings.filterwarnings("ignore", message="torchaudio._backend.list_audio_backends")
 
-        import torch
         import functools
+
+        import torch
 
         # PyTorch 2.6+ compat patch
         _original_torch_load = torch.load
 
         @functools.wraps(_original_torch_load)
         def _patched_torch_load(*args, **kwargs):
-            kwargs['weights_only'] = False
+            kwargs["weights_only"] = False
             return _original_torch_load(*args, **kwargs)
 
         torch.load = _patched_torch_load
@@ -84,18 +86,46 @@ def _run_transcription(meeting_id: str, job_id: str):
 
         # Align
         ALIGNMENT_LANGUAGES = {
-            "en", "fr", "de", "es", "it", "ja", "zh", "nl", "uk", "pt",
-            "ar", "cs", "ru", "pl", "hu", "fi", "fa", "el", "tr", "da",
-            "he", "vi", "ko", "ur", "te", "hi", "ta", "id", "ms"
+            "en",
+            "fr",
+            "de",
+            "es",
+            "it",
+            "ja",
+            "zh",
+            "nl",
+            "uk",
+            "pt",
+            "ar",
+            "cs",
+            "ru",
+            "pl",
+            "hu",
+            "fi",
+            "fa",
+            "el",
+            "tr",
+            "da",
+            "he",
+            "vi",
+            "ko",
+            "ur",
+            "te",
+            "hi",
+            "ta",
+            "id",
+            "ms",
         }
 
         if detected_language in ALIGNMENT_LANGUAGES:
             job_queue.update_job(job_id, stage="aligning", progress=50)
-            model_a, align_metadata = whisperx.load_align_model(
-                language_code=detected_language, device=device
-            )
+            model_a, align_metadata = whisperx.load_align_model(language_code=detected_language, device=device)
             result = whisperx.align(
-                result["segments"], model_a, align_metadata, audio, device,
+                result["segments"],
+                model_a,
+                align_metadata,
+                audio,
+                device,
                 return_char_alignments=False,
             )
             del model_a
@@ -121,13 +151,15 @@ def _run_transcription(meeting_id: str, job_id: str):
         # Build transcript
         segments = []
         for i, seg in enumerate(result["segments"]):
-            segments.append({
-                "id": f"seg_{i:04d}",
-                "start": round(seg["start"], 2),
-                "end": round(seg["end"], 2),
-                "speaker": seg.get("speaker", "UNKNOWN"),
-                "text": seg["text"].strip(),
-            })
+            segments.append(
+                {
+                    "id": f"seg_{i:04d}",
+                    "start": round(seg["start"], 2),
+                    "end": round(seg["end"], 2),
+                    "speaker": seg.get("speaker", "UNKNOWN"),
+                    "text": seg["text"].strip(),
+                }
+            )
 
         transcript = {
             "segments": segments,

@@ -5,8 +5,8 @@ import shutil
 import uuid
 from pathlib import Path
 
-from fastapi import APIRouter, HTTPException, UploadFile, File, Form
-from fastapi.responses import FileResponse, Response
+from fastapi import APIRouter, File, Form, HTTPException, UploadFile
+from fastapi.responses import FileResponse
 
 from backend.schemas import (
     MeetingDetail,
@@ -56,14 +56,16 @@ async def list_meetings():
         try:
             with open(meta_path) as f:
                 meta = MeetingMetadata(**json.load(f))
-            meetings.append(MeetingSummary(
-                id=meta.id,
-                title=meta.title,
-                type=meta.type,
-                created_at=meta.created_at,
-                duration_seconds=meta.duration_seconds,
-                status=meta.status,
-            ))
+            meetings.append(
+                MeetingSummary(
+                    id=meta.id,
+                    title=meta.title,
+                    type=meta.type,
+                    created_at=meta.created_at,
+                    duration_seconds=meta.duration_seconds,
+                    status=meta.status,
+                )
+            )
         except Exception:
             continue
 
@@ -200,9 +202,7 @@ async def update_segment_speaker(meeting_id: str, update: SegmentSpeakerUpdate):
     segment.speaker = new_speaker_id
 
     # Save updated transcript
-    transcript_path.write_text(
-        json.dumps(transcript.model_dump(), ensure_ascii=False, indent=2)
-    )
+    transcript_path.write_text(json.dumps(transcript.model_dump(), ensure_ascii=False, indent=2))
 
     # Map the new speaker ID to the given name
     metadata.speakers[new_speaker_id] = update.speaker_name

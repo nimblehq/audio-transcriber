@@ -13,3 +13,14 @@ source = ["backend", "config"]
 [tool.coverage.report]
 show_missing = true
 fail_under = 80
+
+[tool.ruff]
+line-length = 120
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "W"]
+per-file-ignores = { "transcriber.py" = ["E402"] }
+
+[tool.ruff.format]
+quote-style = "double"

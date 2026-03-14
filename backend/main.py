@@ -1,9 +1,10 @@
-from fastapi import FastAPI
-from fastapi.staticfiles import StaticFiles
-from fastapi.responses import FileResponse
 from pathlib import Path
 
-from backend.routers import meetings, jobs, analysis
+from fastapi import FastAPI
+from fastapi.responses import FileResponse
+from fastapi.staticfiles import StaticFiles
+
+from backend.routers import analysis, jobs, meetings
 
 app = FastAPI(title="Meeting Transcriber")
 
