@@ -9,5 +9,6 @@
   "language": "en",
   "num_speakers": null,
   "job_id": "job-003",
-  "speakers": {}
+  "speakers": {},
+  "error": "Transcription failed: Out of memory"
 }
