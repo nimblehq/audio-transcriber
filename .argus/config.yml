@@ -2,14 +2,18 @@
 # Docs: https://github.com/nimblehq/argus/blob/main/docs/framework.md#configuration
 
 # PM Tool
-pm_tool: github_projects
-commit_prefix: gh
-github_project_number: 92
+pm_tool: github_issues
+commit_prefix: ghi
+github_issue_types_supported: false
 # github_repo: owner/repo  # Optional — auto-detected from git remote origin
+# github_toolsets:          # Default: [issues, users]
+#   - issues
+#   - users
 
 
 # Stack & Conventions
 stacks:
+  - javascript
   - python
 # conventions_source: https://nimblehq.co/compass/development/code-conventions/
 

@@ -3,7 +3,6 @@ from __future__ import annotations
 import json
 import logging
 import threading
-from pathlib import Path
 
 from backend.schemas import JobStatus, MeetingMetadata, MeetingStatus
 from backend.services.job_queue import job_queue
@@ -42,8 +41,9 @@ def _run_transcription(meeting_id: str, job_id: str):
         warnings.filterwarnings("ignore", message="Model was trained with")
         warnings.filterwarnings("ignore", message="torchaudio._backend.list_audio_backends")
 
-        import torch
         import functools
+
+        import torch
 
         # PyTorch 2.6+ compat patch
         _original_torch_load = torch.load

@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
-import warnings
-import logging
 import os
 import sys
+import warnings
+
 from dotenv import load_dotenv
 
 # Suppress noisy warnings from dependencies (must be done before imports)
@@ -35,8 +35,9 @@ sys.stderr = _FilteredStream(sys.stderr)
 
 # Fix for PyTorch 2.6+ which changed weights_only default to True
 # pyannote/whisperx models aren't yet compatible with weights_only=True
-import torch
 import functools
+
+import torch
 
 _original_torch_load = torch.load
 
@@ -329,15 +330,15 @@ def format_transcript_txt(result: dict, speaker_names: dict = None) -> str:
     """Format transcript as readable text with timestamps and speaker labels."""
     lines = []
     speaker_names = speaker_names or {}
-    
+
     for segment in result["segments"]:
         timestamp = format_timestamp(segment["start"])
         speaker = segment.get("speaker", "UNKNOWN")
         speaker_display = speaker_names.get(speaker, speaker)
         text = segment["text"].strip()
-        
+
         lines.append(f"[{timestamp}] {speaker_display}: {text}")
-    
+
     return "\n".join(lines)
 
 
@@ -345,33 +346,33 @@ def format_transcript_srt(result: dict, speaker_names: dict = None) -> str:
     """Format transcript as SRT subtitles with speaker labels."""
     lines = []
     speaker_names = speaker_names or {}
-    
+
     for i, segment in enumerate(result["segments"], 1):
         start = format_srt_timestamp(segment["start"])
         end = format_srt_timestamp(segment["end"])
         speaker = segment.get("speaker", "UNKNOWN")
         speaker_display = speaker_names.get(speaker, speaker)
         text = segment["text"].strip()
-        
+
         lines.append(f"{i}")
         lines.append(f"{start} --> {end}")
         lines.append(f"[{speaker_display}] {text}")
         lines.append("")
-    
+
     return "\n".join(lines)
 
 
 def format_transcript_json(result: dict, speaker_names: dict = None) -> str:
     """Format transcript as JSON."""
     speaker_names = speaker_names or {}
-    
+
     output = {
         "segments": [
             {
                 "start": segment["start"],
                 "end": segment["end"],
                 "speaker": speaker_names.get(
-                    segment.get("speaker", "UNKNOWN"), 
+                    segment.get("speaker", "UNKNOWN"),
                     segment.get("speaker", "UNKNOWN")
                 ),
                 "text": segment["text"].strip()
@@ -379,7 +380,7 @@ def format_transcript_json(result: dict, speaker_names: dict = None) -> str:
             for segment in result["segments"]
         ]
     }
-    
+
     return json.dumps(output, indent=2, ensure_ascii=False)
 
 
