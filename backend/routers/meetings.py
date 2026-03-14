@@ -9,6 +9,7 @@ from fastapi import APIRouter, File, Form, HTTPException, UploadFile
 from fastapi.responses import FileResponse
 
 from backend.schemas import (
+    JobStatus,
     MeetingDetail,
     MeetingMetadata,
     MeetingStatus,
@@ -137,6 +138,25 @@ async def create_meeting(
     start_transcription(meeting_id, job.id)
 
     return {"meeting_id": meeting_id, "job_id": job.id}
+
+
+@router.post("/meetings/{meeting_id}/cancel")
+async def cancel_transcription(meeting_id: str):
+    metadata = _load_metadata(meeting_id)
+
+    if metadata.status != MeetingStatus.PROCESSING:
+        raise HTTPException(status_code=409, detail="Meeting is not currently processing")
+
+    error_message = "Transcription cancelled by user"
+
+    metadata.status = MeetingStatus.ERROR
+    metadata.error = error_message
+    _save_metadata(metadata)
+
+    if metadata.job_id:
+        job_queue.update_job(metadata.job_id, status=JobStatus.FAILED, error=error_message)
+
+    return {"ok": True}
 
 
 @router.post("/meetings/{meeting_id}/retry")
