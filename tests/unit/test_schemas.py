@@ -68,9 +68,7 @@ class TestJobStageEnum:
 
 class TestTranscriptSegment:
     def test_creation(self):
-        seg = TranscriptSegment(
-            id="seg-1", start=0.0, end=5.5, speaker="SPEAKER_00", text="Hello"
-        )
+        seg = TranscriptSegment(id="seg-1", start=0.0, end=5.5, speaker="SPEAKER_00", text="Hello")
         assert seg.id == "seg-1"
         assert seg.start == 0.0
         assert seg.end == 5.5
@@ -78,9 +76,7 @@ class TestTranscriptSegment:
         assert seg.text == "Hello"
 
     def test_serialization(self):
-        seg = TranscriptSegment(
-            id="seg-1", start=1.0, end=2.0, speaker="SPEAKER_01", text="Hi"
-        )
+        seg = TranscriptSegment(id="seg-1", start=1.0, end=2.0, speaker="SPEAKER_01", text="Hi")
         data = seg.model_dump()
         assert data == {
             "id": "seg-1",
@@ -102,9 +98,7 @@ class TestTranscript:
         assert t.language == "en"
 
     def test_with_segments(self):
-        seg = TranscriptSegment(
-            id="s1", start=0.0, end=1.0, speaker="SP00", text="Test"
-        )
+        seg = TranscriptSegment(id="s1", start=0.0, end=1.0, speaker="SP00", text="Test")
         t = Transcript(segments=[seg], language="fr")
         assert len(t.segments) == 1
         assert t.language == "fr"

@@ -19,16 +19,21 @@ _SUPPRESSED_MESSAGES = [
     "Performing voice activity detection",
 ]
 
+
 class _FilteredStream:
     def __init__(self, original):
         self.original = original
+
     def write(self, msg):
         if not any(s in msg for s in _SUPPRESSED_MESSAGES):
             self.original.write(msg)
+
     def flush(self):
         self.original.flush()
+
     def __getattr__(self, name):
         return getattr(self.original, name)
+
 
 sys.stdout = _FilteredStream(sys.stdout)
 sys.stderr = _FilteredStream(sys.stderr)
@@ -41,11 +46,13 @@ import torch
 
 _original_torch_load = torch.load
 
+
 @functools.wraps(_original_torch_load)
 def _patched_torch_load(*args, **kwargs):
     # Force weights_only=False to support older model formats
-    kwargs['weights_only'] = False
+    kwargs["weights_only"] = False
     return _original_torch_load(*args, **kwargs)
+
 
 torch.load = _patched_torch_load
 
@@ -87,9 +94,35 @@ CACHE_VERSION = 1
 # Languages supported by WhisperX alignment (wav2vec2 models)
 # Thai and other languages not in this list will skip alignment
 ALIGNMENT_LANGUAGES = {
-    "en", "fr", "de", "es", "it", "ja", "zh", "nl", "uk", "pt",
-    "ar", "cs", "ru", "pl", "hu", "fi", "fa", "el", "tr", "da",
-    "he", "vi", "ko", "ur", "te", "hi", "ta", "id", "ms"
+    "en",
+    "fr",
+    "de",
+    "es",
+    "it",
+    "ja",
+    "zh",
+    "nl",
+    "uk",
+    "pt",
+    "ar",
+    "cs",
+    "ru",
+    "pl",
+    "hu",
+    "fi",
+    "fa",
+    "el",
+    "tr",
+    "da",
+    "he",
+    "vi",
+    "ko",
+    "ur",
+    "te",
+    "hi",
+    "ta",
+    "id",
+    "ms",
 }
 
 
@@ -174,6 +207,7 @@ def format_srt_timestamp(seconds: float) -> str:
 
 class TranscriptionError(Exception):
     """Raised when transcription fails."""
+
     pass
 
 
@@ -265,10 +299,7 @@ def transcribe_meeting(
     if detected_language in ALIGNMENT_LANGUAGES:
         log("Aligning timestamps...", quiet)
         try:
-            model_a, metadata = whisperx.load_align_model(
-                language_code=detected_language,
-                device=device
-            )
+            model_a, metadata = whisperx.load_align_model(language_code=detected_language, device=device)
             result = whisperx.align(
                 result["segments"],
                 model_a,
@@ -314,9 +345,7 @@ def transcribe_meeting(
             diarize_segments = diarize_model(audio, **diarize_kwargs)
             result = assign_word_speakers(diarize_segments, result)
 
-            unique_speakers = set(
-                s.get("speaker", "UNKNOWN") for s in result["segments"]
-            )
+            unique_speakers = set(s.get("speaker", "UNKNOWN") for s in result["segments"])
             log(f"Identified speakers: {len(unique_speakers)}", quiet)
         except Exception as e:
             raise TranscriptionError(f"Speaker diarization failed: {e}")
@@ -371,11 +400,8 @@ def format_transcript_json(result: dict, speaker_names: dict = None) -> str:
             {
                 "start": segment["start"],
                 "end": segment["end"],
-                "speaker": speaker_names.get(
-                    segment.get("speaker", "UNKNOWN"),
-                    segment.get("speaker", "UNKNOWN")
-                ),
-                "text": segment["text"].strip()
+                "speaker": speaker_names.get(segment.get("speaker", "UNKNOWN"), segment.get("speaker", "UNKNOWN")),
+                "text": segment["text"].strip(),
             }
             for segment in result["segments"]
         ]
@@ -395,7 +421,7 @@ def identify_speakers(result: dict) -> dict:
             text = segment["text"].strip()
             if len(text) > max_preview_len:
                 text = text[:max_preview_len] + "..."
-            speakers[speaker] = f"[{timestamp}] \"{text}\""
+            speakers[speaker] = f'[{timestamp}] "{text}"'
     return speakers
 
 
@@ -424,84 +450,38 @@ def prompt_speaker_names(result: dict) -> dict:
 
 
 def main():
-    parser = argparse.ArgumentParser(
-        description="Transcribe audio/video files with speaker diarization"
-    )
+    parser = argparse.ArgumentParser(description="Transcribe audio/video files with speaker diarization")
     parser.add_argument("audio_file", help="Path to audio/video file")
     parser.add_argument(
         "--model",
         default="large-v3",
         choices=["tiny", "base", "small", "medium", "large-v3"],
-        help="Whisper model size (default: large-v3)"
+        help="Whisper model size (default: large-v3)",
     )
+    parser.add_argument("--output", "-o", help="Output file path (default: same name as input with .txt extension)")
     parser.add_argument(
-        "--output", "-o",
-        help="Output file path (default: same name as input with .txt extension)"
+        "--format", "-f", default="txt", choices=["txt", "srt", "json"], help="Output format (default: txt)"
     )
-    parser.add_argument(
-        "--format", "-f",
-        default="txt",
-        choices=["txt", "srt", "json"],
-        help="Output format (default: txt)"
-    )
-    parser.add_argument(
-        "--device",
-        choices=["cuda", "cpu"],
-        help="Device to use (default: auto-detect)"
-    )
-    parser.add_argument(
-        "--batch-size",
-        type=int,
-        help="Batch size for transcription (default: 16 for CUDA, 4 for CPU)"
-    )
-    parser.add_argument(
-        "--language",
-        help="Language code (e.g., 'en', 'fr'). Auto-detected if not specified."
-    )
-    parser.add_argument(
-        "--speakers",
-        help="Comma-separated speaker names in order (e.g., 'Alice,Bob,Carol')"
-    )
-    parser.add_argument(
-        "--num-speakers",
-        type=int,
-        help="Exact number of speakers (helps diarization accuracy)"
-    )
-    parser.add_argument(
-        "--min-speakers",
-        type=int,
-        help="Minimum number of speakers"
-    )
-    parser.add_argument(
-        "--max-speakers",
-        type=int,
-        help="Maximum number of speakers"
-    )
+    parser.add_argument("--device", choices=["cuda", "cpu"], help="Device to use (default: auto-detect)")
+    parser.add_argument("--batch-size", type=int, help="Batch size for transcription (default: 16 for CUDA, 4 for CPU)")
+    parser.add_argument("--language", help="Language code (e.g., 'en', 'fr'). Auto-detected if not specified.")
+    parser.add_argument("--speakers", help="Comma-separated speaker names in order (e.g., 'Alice,Bob,Carol')")
+    parser.add_argument("--num-speakers", type=int, help="Exact number of speakers (helps diarization accuracy)")
+    parser.add_argument("--min-speakers", type=int, help="Minimum number of speakers")
+    parser.add_argument("--max-speakers", type=int, help="Maximum number of speakers")
     parser.add_argument(
         "--identify-speakers",
         action="store_true",
-        help="Show first utterance from each speaker and exit (for mapping names)"
+        help="Show first utterance from each speaker and exit (for mapping names)",
     )
     parser.add_argument(
-        "--interactive", "-i",
-        action="store_true",
-        help="Interactively prompt for speaker names after transcription"
+        "--interactive", "-i", action="store_true", help="Interactively prompt for speaker names after transcription"
     )
+    parser.add_argument("--no-diarization", action="store_true", help="Skip speaker diarization")
     parser.add_argument(
-        "--no-diarization",
-        action="store_true",
-        help="Skip speaker diarization"
+        "--quiet", "-q", action="store_true", help="Suppress progress messages (only show errors and final output path)"
     )
-    parser.add_argument(
-        "--quiet", "-q",
-        action="store_true",
-        help="Suppress progress messages (only show errors and final output path)"
-    )
-    parser.add_argument(
-        "--no-cache",
-        action="store_true",
-        help="Ignore cached transcription and re-transcribe"
-    )
+    parser.add_argument("--no-cache", action="store_true", help="Ignore cached transcription and re-transcribe")
 
     args = parser.parse_args()
 
@@ -565,10 +545,7 @@ def main():
 
     # Build speaker name mapping
     speaker_names = {}
-    unique_speakers = sorted(set(
-        s.get("speaker", "UNKNOWN")
-        for s in result["segments"]
-    ))
+    unique_speakers = sorted(set(s.get("speaker", "UNKNOWN") for s in result["segments"]))
 
     if args.interactive and hf_token:
         # Interactive mode: prompt for each speaker name
@@ -582,8 +559,7 @@ def main():
 
         # Warn about mismatch
         if len(names) != len(unique_speakers) and not args.quiet:
-            print(f"Warning: {len(names)} names provided but "
-                  f"{len(unique_speakers)} speakers detected.")
+            print(f"Warning: {len(names)} names provided but {len(unique_speakers)} speakers detected.")
             if len(names) < len(unique_speakers):
                 print("Some speakers will keep their default IDs.")
             else:
