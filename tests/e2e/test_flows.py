@@ -115,7 +115,12 @@ class TestRetryFlow:
 
     @patch("backend.routers.meetings.start_transcription")
     async def test_retry_failed_transcription(
-        self, mock_start, client, meetings_dir: Path, sample_audio: Path, sample_metadata_error: dict,
+        self,
+        mock_start,
+        client,
+        meetings_dir: Path,
+        sample_audio: Path,
+        sample_metadata_error: dict,
     ):
         # Step 1: Set up a failed meeting on disk
         meeting_id = sample_metadata_error["id"]
