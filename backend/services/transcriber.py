@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import logging
 import threading
+from pathlib import Path
 
 from backend.schemas import JobStatus, MeetingMetadata, MeetingStatus
 from backend.services.job_queue import job_queue
@@ -22,6 +23,16 @@ def _get_device() -> str:
     except ImportError:
         pass
     return "cpu"
+
+
+def _is_cancelled(metadata_path: Path) -> bool:
+    """Check if the meeting has been cancelled (status is no longer PROCESSING)."""
+    try:
+        with open(metadata_path) as f:
+            meta = json.load(f)
+        return meta.get("status") != MeetingStatus.PROCESSING.value
+    except Exception:
+        return False
 
 
 def _run_transcription(meeting_id: str, job_id: str):
@@ -165,6 +176,11 @@ def _run_transcription(meeting_id: str, job_id: str):
             "segments": segments,
             "language": detected_language,
         }
+
+        # Check if cancelled before saving results
+        if _is_cancelled(metadata_path):
+            logger.info("Transcription for meeting %s was cancelled, discarding results", meeting_id)
+            return
 
         # Save transcript
         transcript_path = meeting_dir / "transcript.json"
