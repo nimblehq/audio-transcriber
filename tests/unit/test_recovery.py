@@ -36,9 +36,7 @@ class TestRecoverStuckMeetings:
         assert sorted(recovered) == ["m1", "m2"]
 
         for mid in ["m1", "m2"]:
-            metadata = json.loads(
-                (meetings_dir / mid / "metadata.json").read_text()
-            )
+            metadata = json.loads((meetings_dir / mid / "metadata.json").read_text())
             assert metadata["status"] == "error"
             assert metadata["error"] == "Transcription interrupted by app restart"
 
@@ -52,9 +50,7 @@ class TestRecoverStuckMeetings:
         assert recovered == []
 
         # Verify they were not modified
-        ready_meta = json.loads(
-            (meetings_dir / "ready1" / "metadata.json").read_text()
-        )
+        ready_meta = json.loads((meetings_dir / "ready1" / "metadata.json").read_text())
         assert ready_meta["status"] == "ready"
 
     def test_mixed_statuses(self, meetings_dir):
