@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import logging
+import subprocess
 from pathlib import Path
 
 logger = logging.getLogger(__name__)
@@ -8,6 +9,19 @@ logger = logging.getLogger(__name__)
 HIGHPASS_CUTOFF_HZ = 80
 NOISE_PROP_DECREASE = 0.75
 TARGET_LUFS = -23.0
+
+SOUNDFILE_FORMATS = {".wav", ".flac", ".ogg", ".aiff", ".aif"}
+
+
+def _convert_to_wav(audio_path: Path) -> Path:
+    """Convert non-WAV audio to WAV using ffmpeg. Returns path to the converted file."""
+    wav_path = audio_path.parent / "audio_converted.wav"
+    subprocess.run(
+        ["ffmpeg", "-y", "-i", str(audio_path), "-ar", "16000", "-ac", "1", str(wav_path)],
+        check=True,
+        capture_output=True,
+    )
+    return wav_path
 
 
 def preprocess_audio(audio_path: Path) -> Path:
@@ -21,7 +35,15 @@ def preprocess_audio(audio_path: Path) -> Path:
 
     logger.info("Preprocessing audio: %s", audio_path.name)
 
-    data, sample_rate = sf.read(audio_path, dtype="float64")
+    converted_path = None
+    if audio_path.suffix.lower() not in SOUNDFILE_FORMATS:
+        logger.info("Converting %s to WAV via ffmpeg", audio_path.suffix)
+        converted_path = _convert_to_wav(audio_path)
+        read_path = converted_path
+    else:
+        read_path = audio_path
+
+    data, sample_rate = sf.read(read_path, dtype="float64")
 
     # Convert stereo to mono if needed
     if data.ndim > 1:
@@ -53,6 +75,9 @@ def preprocess_audio(audio_path: Path) -> Path:
     # Save preprocessed copy
     output_path = audio_path.parent / "audio_preprocessed.wav"
     sf.write(str(output_path), data, sample_rate)
+
+    if converted_path and converted_path.exists():
+        converted_path.unlink()
 
     logger.info("Preprocessed audio saved: %s", output_path.name)
     return output_path
