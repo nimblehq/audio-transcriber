@@ -47,7 +47,7 @@ data/meetings/{id}/    # Per-meeting: metadata.json, transcript.json, audio file
 
 ## Key Flows
 
-**Transcription pipeline:** Upload (POST /api/meetings) -> save audio + metadata.json (status=PROCESSING) -> create JobInfo -> spawn daemon thread -> WhisperX transcribe -> align timestamps -> PyAnnote diarize -> save transcript.json -> update metadata (status=READY)
+**Transcription pipeline:** Upload (POST /api/meetings) -> save audio + metadata.json (status=PROCESSING) -> create JobInfo -> spawn daemon thread -> preprocess audio (if enabled: high-pass filter, noise reduction, loudness normalization) -> WhisperX transcribe -> align timestamps -> PyAnnote diarize -> save transcript.json -> update metadata (status=READY)
 
 **Frontend polling:** transcript-viewer.js polls GET /api/jobs/{jobId} every 3s -> shows progress bar -> auto-navigates on completion
 

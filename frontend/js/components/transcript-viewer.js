@@ -337,6 +337,7 @@ async function updateProgress(meetingId, jobId) {
 
         const stageLabels = {
             uploading: 'Uploading...',
+            preprocessing: 'Preprocessing audio...',
             transcribing: 'Transcribing audio...',
             aligning: 'Aligning timestamps...',
             diarizing: 'Identifying speakers...',

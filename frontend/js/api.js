@@ -11,13 +11,14 @@ const API = {
         return res.json();
     },
 
-    async createMeeting(file, title, meetingType, language, numSpeakers) {
+    async createMeeting(file, title, meetingType, language, numSpeakers, preprocessAudio = true) {
         const form = new FormData();
         form.append('file', file);
         form.append('title', title || '');
         form.append('meeting_type', meetingType || 'other');
         form.append('language', language || 'auto');
         form.append('num_speakers', numSpeakers || 'auto');
+        form.append('preprocess_audio', preprocessAudio ? 'true' : 'false');
         const res = await fetch('/api/meetings', { method: 'POST', body: form });
         if (!res.ok) {
             const err = await res.json();

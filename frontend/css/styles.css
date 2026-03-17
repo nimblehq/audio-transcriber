@@ -353,6 +353,26 @@ body {
     border-color: var(--primary);
 }
 
+.form-checkbox label {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    cursor: pointer;
+    font-size: 14px;
+    color: var(--text);
+}
+
+.form-checkbox input[type="checkbox"] {
+    width: auto;
+    margin: 0;
+    accent-color: var(--primary);
+}
+
+.form-hint {
+    font-size: 12px;
+    color: var(--text-muted);
+}
+
 /* Audio Player */
 .audio-player {
     background: var(--bg-surface);
