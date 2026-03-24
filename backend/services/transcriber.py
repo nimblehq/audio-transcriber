@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import logging
 import threading
+import time
 from pathlib import Path
 
 from backend.schemas import JobStatus, MeetingMetadata, MeetingStatus
@@ -89,10 +90,36 @@ def _run_transcription(meeting_id: str, job_id: str):
         # Transcribe
         job_queue.update_job(job_id, stage="transcribing", progress=20)
         model = whisperx.load_model(WHISPER_MODEL, device, compute_type=compute_type)
+
+        # Estimate audio duration for time-based progress during transcription
+        audio_duration_sec = len(audio) / 16000  # whisperx uses 16kHz sample rate
+        # Rough estimate: ~10s of audio per second on CPU, ~60s on GPU
+        est_transcribe_sec = max(audio_duration_sec / (60 if device == "cuda" else 10), 5)
+
         transcribe_opts = {"batch_size": batch_size}
         if metadata.language and metadata.language != "auto":
             transcribe_opts["language"] = metadata.language
-        result = model.transcribe(audio, **transcribe_opts)
+
+        # Smooth progress updates during transcription (20% -> 49%)
+        _transcribe_done = threading.Event()
+
+        def _update_transcribe_progress():
+            start = time.monotonic()
+            while not _transcribe_done.wait(timeout=2):
+                elapsed = time.monotonic() - start
+                # Asymptotic curve: approaches 49% but never reaches it
+                fraction = elapsed / (elapsed + est_transcribe_sec)
+                pct = 20 + int(fraction * 29)
+                job_queue.update_job(job_id, stage="transcribing", progress=min(pct, 49))
+
+        progress_thread = threading.Thread(target=_update_transcribe_progress, daemon=True)
+        progress_thread.start()
+
+        try:
+            result = model.transcribe(audio, **transcribe_opts)
+        finally:
+            _transcribe_done.set()
+            progress_thread.join(timeout=5)
 
         if not result or not result.get("segments"):
             raise RuntimeError("No speech detected in audio")
