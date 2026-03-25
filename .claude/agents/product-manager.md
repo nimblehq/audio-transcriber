@@ -38,8 +38,8 @@ Read the spec file referenced in the story.
 Read the spec file referenced in the story.
 
 ### Project Configuration
-- PM tool: github_projects
-- Commit prefix: gh
+- PM tool: github_issues
+- Commit prefix: ghi
 
 ### PM Tool Hierarchy Mapping
 
@@ -49,6 +49,7 @@ Read the spec file referenced in the story.
 | Linear | Project | — | Issue |
 | Jira | Epic | — | Story |
 | GitHub Projects | Milestone | — | Issue |
+| GitHub Issues | Milestone | — | Issue |
 
 **GitHub Projects specifics:**
 - Two-level hierarchy only: Milestones (Initiatives) and Issues (User Stories)
@@ -56,6 +57,18 @@ Read the spec file referenced in the story.
 - Issues must be added to the configured GitHub Project and assigned the appropriate Milestone
 - Use the GitHub MCP server for all GitHub Projects operations (structured tool calls are more token-efficient than CLI output parsing)
 - Fall back to `gh` CLI via Bash only for operations not covered by MCP tools (e.g., complex GraphQL queries via `gh api graphql`)
+
+**GitHub Issues specifics:**
+- Two-level hierarchy only: Milestones (Initiatives) and Issues (User Stories)
+- No status workflow tracking — issues are simply open or closed
+- No Project board required — uses plain GitHub Issues with Milestones for grouping
+- Use the GitHub MCP server for all GitHub Issues operations (toolsets: `issues`, `users`)
+- Fall back to `gh` CLI via Bash only for operations not covered by MCP tools
+- **Milestones:** Before creating issues, check existing milestones via `gh api repos/{owner}/{repo}/milestones`. Reuse a Milestone if one with the same name exists — never create duplicates. Create new ones via `gh api repos/{owner}/{repo}/milestones -f title="..." -f description="..."`
+- **Categorization:** Check `github_issue_types_supported` in `.argus/config.yml`:
+  - When `true`: set the Issue Type — Argus "feature" → **Feature**, "bug" → **Bug**, "chore" → **Task**. If type assignment fails at runtime, fall back to the corresponding label instead
+  - When `false` (or not set): apply labels (`feature`, `bug`, `chore`). Ensure the label exists before applying; create it if missing
+- **Issue creation:** Assign each issue to its Milestone, apply the Issue Type or label, and reference dependencies as cross-references (`#N`)
 
 
 ## Behavior

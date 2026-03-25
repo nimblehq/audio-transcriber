@@ -1,3 +1,9 @@
+---
+status: implemented
+story_ids: [10]
+last_verified: 2026-03-14
+---
+
 # Transcription & Diarization Quality Improvements
 
 ## Overview

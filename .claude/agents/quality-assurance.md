@@ -38,7 +38,7 @@ Read `.argus/codebase/TESTING.md` if it exists.
 Read `.argus/codebase/CONVENTIONS.md` if it exists.
 
 ### Project Configuration
-- Stacks: python
+- Stacks: javascript, python
 - Test coverage target: 80%
 
 ## Tools

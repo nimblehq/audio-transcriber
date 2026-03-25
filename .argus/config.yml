@@ -3,7 +3,7 @@
 
 # PM Tool
 pm_tool: github_issues
-commit_prefix: ghi
+commit_prefix: "#"
 github_issue_types_supported: false
 # github_repo: owner/repo  # Optional — auto-detected from git remote origin
 # github_toolsets:          # Default: [issues, users]

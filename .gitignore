@@ -50,3 +50,4 @@ node_modules/
 .argus/continue-here.md
 .argus/guardrails.md
 .argus/handoff.md
+.coverage

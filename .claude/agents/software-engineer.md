@@ -75,6 +75,91 @@ Read `.argus/codebase/CONCERNS.md` if it exists.
 
 
 **Layer 1B — Stack-Specific Best Practices:**
+# JavaScript Best Practices
+
+## Architecture
+
+- Organize code into clear directories: `adapters/` (network), `components/` (UI), `helpers/` (utilities), `screens/` (pages), `services/` (business logic), `config/` (environment)
+- Create one adapter per API resource — extend a base adapter for shared config (headers, auth)
+- Use the constructor pattern for components: `_bind()`, `_setup()`, `_addEventListeners()` as private methods
+- Create one initializer file per component, export all through `initializers/index.js`
+- Manifest files include only initializers and screens (in that order)
+- Use ES6 classes over prototype-based patterns
+- Use `const` by default, `let` when reassignment is needed, never `var`
+- Prefer strict equality (`===` / `!==`) everywhere — only use `==` for intentional `null`/`undefined` coalescing
+- Use optional chaining (`?.`) and nullish coalescing (`??`) instead of manual truthy checks or lodash `_.get`
+- Use `structuredClone()` for deep copies — avoid JSON parse/stringify round-trips or spread-based shallow clones
+- Keep functions small and single-purpose — extract helpers when a function exceeds ~30 lines
+- Use early returns to reduce nesting depth and improve readability
+- Prefer named exports over default exports for better refactoring and tree-shaking support
+- Use native `#private` class fields over underscore conventions when runtime privacy is needed
+
+## Performance
+
+- Favor `map()`, `filter()`, `reduce()` over traditional `for` loops for clarity and optimization
+- Use template literals over string concatenation for readability and performance
+- Use arrow functions for callbacks and function expressions
+- Import only what is needed — avoid importing entire modules when destructured imports are available
+- Group imports by: built-in modules, external packages, internal modules (alphabetical within each group)
+- Never block the event loop — offload CPU-intensive work to Web Workers or worker threads in Node.js
+- Minimize DOM reads/writes and batch DOM mutations to avoid layout thrashing
+- Use `requestAnimationFrame` for visual updates instead of `setTimeout`/`setInterval`
+- Avoid memory leaks: remove event listeners on teardown, nullify references in closures, use `WeakRef`/`WeakMap` for caches
+- Use `AbortController` to cancel in-flight fetch requests and avoid stale responses
+- Prefer `for...of` over `forEach` when early exit (`break`/`return`) is needed
+- Debounce or throttle high-frequency events (scroll, resize, input) to limit unnecessary computation
+
+## Security
+
+- Use strict equality (`===` and `!==`) except when intentionally comparing against `null`/`undefined`
+- Sanitize all user input before DOM insertion — never use `innerHTML` with untrusted content
+- Validate and sanitize URL inputs before using in redirects or link hrefs
+- Store secrets in environment variables, never in client-side code
+- Use Content Security Policy headers to prevent XSS attacks
+- Prevent prototype pollution: freeze prototypes on critical objects, validate JSON keys, avoid recursive merge without safeguards
+- Write ReDoS-safe regular expressions — avoid nested quantifiers and unbounded repetition on overlapping patterns
+- Never use `eval()`, `Function()` constructor, or `setTimeout`/`setInterval` with string arguments
+- Validate and sanitize all server-side inputs — never trust client-side validation alone
+- Use `Object.create(null)` for lookup maps to avoid prototype chain interference
+- Set `HttpOnly`, `Secure`, and `SameSite` flags on cookies to mitigate XSS and CSRF
+- Pin dependency versions and audit regularly with `npm audit` to catch known vulnerabilities
+
+## Testing
+
+- Use Cypress for E2E testing with TypeScript support
+- Configure `baseUrl` in Cypress config to avoid repeating URLs across tests
+- Name test files with `.spec.ts` suffix in camelCase
+- Use `data-test-id` attributes for selectors instead of CSS classes or HTML structure
+- Use `cy.intercept()` (v6.0+) to stub network requests with fixtures
+- Create reusable custom commands for repeated test workflows
+- Write `describe` blocks with the filename, `context` blocks with "when/given", and `it` blocks in imperative mood without "should"
+- Test async code with `async`/`await` — avoid `.then()` chains in tests for readability
+- Mock timers (`jest.useFakeTimers` or `vi.useFakeTimers`) when testing `setTimeout`/`setInterval` logic
+- Test error paths and edge cases, not just happy paths — verify thrown errors, rejected promises, and boundary inputs
+- Keep tests isolated: no shared mutable state between test cases, reset mocks in `beforeEach`/`afterEach`
+- Aim for deterministic tests — avoid reliance on real time, network, or random values
+
+## Common Anti-Patterns
+
+- `innerHTML with user content` → Use textContent or sanitize with DOMPurify (Critical)
+- `unhandled promise rejections` → Always attach `.catch()` or use `try`/`catch` in async functions — unhandled rejections crash Node.js (Critical)
+- `eval or Function constructor` → Use safe alternatives like JSON.parse or AST-based transforms (Critical)
+- `unbounded recursive merge on user input` → Validate keys and use `Object.create(null)` to prevent prototype pollution (Critical)
+- `var declarations` → Use `const` or `let` for block scoping and clarity (Major)
+- `== for equality checks` → Use `===` to avoid type coercion bugs (Major)
+- `floating promises` → Always `await` or return promises — a missing `await` silently swallows errors (Major)
+- `callback hell` → Refactor nested callbacks to async/await or named functions (Major)
+- `memory leaks from unremoved listeners` → Remove event listeners in cleanup/teardown lifecycle hooks (Major)
+- `network calls in components` → Extract to adapter classes with base adapter pattern (Major)
+- `string concatenation with +` → Use template literals for readability (Minor)
+- `for loops for array transformation` → Use `map`, `filter`, `reduce` for declarative code (Minor)
+- `typeof null === 'object'` → Guard with explicit `value !== null` check before typeof (Minor)
+- `CSS/HTML selectors in tests` → Use data-test-id attributes for resilient test selectors (Minor)
+- `missing trailing commas` → Add trailing commas in multi-line arrays/objects for cleaner diffs (Nit)
+- `_singleUnderscore private without enforcement` → Document intent but consider WeakMap or # private fields (Nit)
+- `missing semicolons` → Include semicolons at the end of each statement (Nit)
+
+
 # Python Best Practices
 
 ## Architecture
@@ -154,9 +239,9 @@ Read from the `conventions_source` URL in `.argus/config.yml` if configured.
 Read `.argus/conventions.md` if it exists.
 
 ### Project Configuration
-- PM tool: github_projects
-- Commit prefix: gh
-- Stacks: python
+- PM tool: github_issues
+- Commit prefix: ghi
+- Stacks: javascript, python
 - Test coverage target: 80%
 
 ### PM Tool Hierarchy Mapping
@@ -167,6 +252,7 @@ Read `.argus/conventions.md` if it exists.
 | Linear | Project | — | Issue |
 | Jira | Epic | — | Story |
 | GitHub Projects | Milestone | — | Issue |
+| GitHub Issues | Milestone | — | Issue |
 
 **GitHub Projects specifics:**
 - Two-level hierarchy only: Milestones (Initiatives) and Issues (User Stories)
@@ -174,6 +260,18 @@ Read `.argus/conventions.md` if it exists.
 - Issues must be added to the configured GitHub Project and assigned the appropriate Milestone
 - Use the GitHub MCP server for all GitHub Projects operations (structured tool calls are more token-efficient than CLI output parsing)
 - Fall back to `gh` CLI via Bash only for operations not covered by MCP tools (e.g., complex GraphQL queries via `gh api graphql`)
+
+**GitHub Issues specifics:**
+- Two-level hierarchy only: Milestones (Initiatives) and Issues (User Stories)
+- No status workflow tracking — issues are simply open or closed
+- No Project board required — uses plain GitHub Issues with Milestones for grouping
+- Use the GitHub MCP server for all GitHub Issues operations (toolsets: `issues`, `users`)
+- Fall back to `gh` CLI via Bash only for operations not covered by MCP tools
+- **Milestones:** Before creating issues, check existing milestones via `gh api repos/{owner}/{repo}/milestones`. Reuse a Milestone if one with the same name exists — never create duplicates. Create new ones via `gh api repos/{owner}/{repo}/milestones -f title="..." -f description="..."`
+- **Categorization:** Check `github_issue_types_supported` in `.argus/config.yml`:
+  - When `true`: set the Issue Type — Argus "feature" → **Feature**, "bug" → **Bug**, "chore" → **Task**. If type assignment fails at runtime, fall back to the corresponding label instead
+  - When `false` (or not set): apply labels (`feature`, `bug`, `chore`). Ensure the label exists before applying; create it if missing
+- **Issue creation:** Assign each issue to its Milestone, apply the Issue Type or label, and reference dependencies as cross-references (`#N`)
 
 
 ## Guardrails
@@ -337,10 +435,12 @@ Choose standard mode when:
 
 ## Commit Rules
 
-- Prefix all commits with `[gh-{story-id}]`
+- Prefix all commits with `[ghi-{story-id}]`
 - Present tense, capitalize first word, no period
 - Atomic commits — one logical change per commit
 - If you find yourself using "and" in the message, split into separate commits
+- Single-line title only — no body, no description
+- Never add `Co-Authored-By` trailers to commits
 
 
 ## Gitflow
@@ -378,22 +478,30 @@ After implementation is complete, dispatch the Architect agent to review your br
 4. Address any Critical issues (these block the PR)
 5. Iterate until the Architect passes the review
 
-Only open the PR after the Architect review passes. This keeps the feedback loop tight — no waiting for CI. Follow the PR creation guidelines below when opening the PR.
+Only open the PR after the Architect review passes. This keeps the feedback loop tight — no waiting for CI. Follow the "Create PR Guidelines" below when creating the PR.
 
-## PR Creation
+## Create PR Guidelines
 
-When opening a PR:
+> **Reminder**: Read tool uses `file_path` (not `file`). Bash tool uses `command` (not `cmd`).
+
+When creating the PR, follow these guidelines:
 
 1. Check if `.github/PULL_REQUEST_TEMPLATE.md` exists in the project root
-2. If a template exists:
-   - Read the template file
-   - Populate each section using context from the story, implementation plan, and commits
-   - Use the filled template as the PR body
-3. If no template exists, structure the PR body with:
-   - A link to the story in the PM tool
-   - A summary of what changed and why
-   - Key changes as a bullet list
-4. Create the PR with `gh pr create` targeting `develop`, passing the populated body via `--body`
+   - If the template DOES exist:
+      1. Read the template file, and populate each section using context from the ticket and commits
+      2. Populate the `Story:` field based on the PM tool:
+         - **Shortcut**: `[ghi-{id}](https://app.shortcut.com/{org}/story/{id})`
+         - **Linear**: `[ghi-{id}](https://linear.app/{workspace}/issue/{id})`
+         - **GitHub Projects** / **GitHub Issues**: `[#{number}](https://github.com/{owner}/{repo}/issues/{number})` — resolve `{owner}/{repo}` from `config.github_repo` if set, otherwise auto-detect from `git remote get-url origin`
+      3. Use the filled template as the body upon creating the PR
+   - If the template DOES NOT exist, stop and warn the user
+2. Push the branch to remote with the `git push -u origin HEAD` command
+3. Determine the title based on the ticket title, following the `[<prefix>-<ticket id>] <ticket title>` format
+4. Determine the label based on the ticket type:
+   - story → `type : feature`
+   - bug → `type : bug`
+   - chore → `type : chore`
+5. Create the PR using the GitHub CLI: `gh pr create --draft --base develop --assignee @me --label "<label>" --title "<title>" --body "<body>"`
 
 
 ### Phase 6: QA Verification
