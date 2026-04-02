@@ -50,6 +50,7 @@ Analyze the transcript and produce a structured summary. Target ~300-400 words t
 - Volume ≠ value: Don't assume the person who spoke most was most important
 - Omit content-dependent sections entirely if insufficient signal
 - Include confidence levels for interpretive observations (high/medium/low)
+- Acknowledge transcript-only limitations: When tone would materially affect interpretation (e.g., "that's fine" could be agreement or frustration), note that audio context would clarify
 
 **For commitment assessment, use this spectrum:**
 - **Strong:** "I will deliver X by Friday" (clear verb, owner, deadline)
@@ -126,6 +127,9 @@ Categories: Confusion | Misunderstanding | Hidden Disagreement | Unresolved
 
 ## Your Contribution ([Speaker Name])
 [CONTENT-DEPENDENT: Include only if user opted in AND speaker found in transcript]
+
+**If speaker not found:** Instead of this section, output:
+"I couldn't find '[provided name]' in the transcript. The speakers I found are: [list speaker names/labels]. Please clarify which speaker you are, and I'll regenerate the self-assessment."
 
 ### Metrics
 - Talk time: ~XX%
