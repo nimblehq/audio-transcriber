@@ -78,4 +78,5 @@ _None planned._
 
 ## Deviations from Plan
 
-_Populated after implementation._
+- Added explicit handling for "transcript-only limitations" edge case (spec requirement, discovered during QA)
+- Added explicit handling for "self-assessment speaker not found" edge case (spec requirement, discovered during QA)
