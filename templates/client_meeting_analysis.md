@@ -16,6 +16,7 @@
 | Meeting Effectiveness | Required | Internal only |
 | Project Status | Content-dependent | Include if progress/blockers discussed |
 | Technical Discussions | Content-dependent | Include if technical topics covered |
+| Client Sentiment | Content-dependent | Internal only; include if sentiment signals detected |
 | Contribution Dynamics | Content-dependent | Include if notable patterns |
 | Meeting Signals | Content-dependent | Include if notable signals detected |
 | Potential Issues | Content-dependent | Include if issues detected |
@@ -129,6 +130,14 @@ Extract key information for project management and follow-up. Target ~400-500 wo
 
 **Decisions:** [Technical decisions made]
 **Open:** [Topics needing more exploration]
+
+## Client Sentiment
+[CONTENT-DEPENDENT: Internal only — include if clear sentiment signals detected]
+
+- **Overall mood:** Positive / Neutral / Concerned / Frustrated
+- **Project confidence:** High / Moderate / Low
+- **Key concerns:** [What's on their mind?]
+- **Notable quotes:** "[Anything important worth remembering]"
 
 ## Contribution Dynamics
 [CONTENT-DEPENDENT: Include only if notable patterns detected]

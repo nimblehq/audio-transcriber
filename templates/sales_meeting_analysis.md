@@ -18,6 +18,7 @@
 | Decision Making | Content-dependent | Include if buying process discussed |
 | Budget Signals | Content-dependent | Include if budget/pricing discussed |
 | Objections | Content-dependent | Include if concerns raised |
+| Prospect Sentiment | Content-dependent | Include if sentiment signals detected |
 | Contribution Dynamics | Content-dependent | Include if notable patterns |
 | Meeting Signals | Content-dependent | Include if notable signals detected |
 | Potential Issues | Content-dependent | Include if issues detected |
@@ -131,6 +132,15 @@ Extract actionable sales intelligence from this conversation. Target ~400-500 wo
 - [Concern] — Severity: High/Med/Low — Our response: [How addressed] — Resolved: Yes/Partially/No
 
 **Unspoken concerns:** [What they might worry about but didn't say] (Confidence: high/medium/low)
+
+## Prospect Sentiment
+[CONTENT-DEPENDENT: Include only if clear sentiment signals detected]
+
+- **Enthusiasm:** High / Moderate / Low / Mixed — Evidence: [signals]
+- **Pricing reaction:** Comfortable / Cautious / Concerned / Not discussed
+- **Confidence in Nimble:** High / Building / Skeptical / Unclear
+- **Urgency:** Urgent / Normal / Low priority — Evidence: [timeline pressure, competing priorities]
+- **Momentum:** Gaining / Steady / Losing / Stalled
 
 ## Contribution Dynamics
 [CONTENT-DEPENDENT: Include only if notable patterns detected]
