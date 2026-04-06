@@ -1,8 +1,29 @@
 # Sales Meeting Analysis Template
 
-Use this prompt with a meeting transcription to extract sales intelligence and next steps.
+## Template Metadata
 
----
+**Purpose:** Extract sales intelligence and generate prospect follow-up from sales conversations
+**Target length:** Sales Intelligence ~400-500 words | Prospect Follow-Up ~150-200 words
+**Output structure:** Dual-output (internal intelligence + external follow-up)
+
+### Section Classification
+
+| Section | Tier | Notes |
+|---------|------|-------|
+| TL;DR | Required | Always include |
+| Deal Snapshot | Required | Always include |
+| Pain Points & Needs | Required | Always include |
+| Commitments | Required | Always include |
+| Meeting Effectiveness | Required | Internal only |
+| Decision Making | Content-dependent | Include if buying process discussed |
+| Budget Signals | Content-dependent | Include if budget/pricing discussed |
+| Objections | Content-dependent | Include if concerns raised |
+| Prospect Sentiment | Content-dependent | Include if sentiment signals detected |
+| Contribution Dynamics | Content-dependent | Include if notable patterns |
+| Meeting Signals | Content-dependent | Include if notable signals detected |
+| Potential Issues | Content-dependent | Include if issues detected |
+| Your Contribution | Content-dependent | Only if user opts in |
+| Prospect Follow-Up | Required | Always generate |
 
 ## Prompt
 
@@ -13,163 +34,188 @@ You are analyzing a sales meeting transcript for Nimble, a digital product consu
 **Attendees:** {{NAMES_AND_ROLES}}
 **Date:** {{DATE}}
 
+### Personal Performance Opt-In
+
+Before analyzing, I have a question:
+
+Would you like me to include a personal performance analysis of your own contribution to this meeting? This section analyzes your talk time, question quality, hedging patterns, and other behaviors to support self-improvement tracking over time.
+
+[ ] Yes, include my performance analysis
+[ ] No, skip this section
+
+If yes: What name or speaker label identifies you in the transcript?
+[Your name]: _______
+
 ### Instructions
 
-Extract actionable sales intelligence from this conversation. Be specific with quotes and timestamps where relevant. Distinguish between what was explicitly stated vs. what you're inferring.
+Extract actionable sales intelligence from this conversation. Target ~400-500 words for Sales Intelligence and ~150-200 words for Prospect Follow-Up.
+
+**Key principles:**
+- Distinguish explicit statements from inferences (mark inferences clearly)
+- Use "In this meeting..." not "This prospect has..." for single-meeting observations
+- Volume ≠ value: Don't assume the person who spoke most was most important
+- Omit content-dependent sections entirely if insufficient signal (don't fabricate)
+- Include confidence levels for interpretive observations (high/medium/low)
+- Acknowledge transcript-only limitations: When tone would materially affect interpretation (e.g., "that's fine" could be agreement or frustration), note that audio context would clarify
+
+**For commitment assessment, use this spectrum:**
+- **Strong:** "I will deliver X by Friday" (clear verb, owner, deadline)
+- **Moderate:** "I'll look into that this week" (owner, rough timeline, vague deliverable)
+- **Weak:** "We should explore this" (no owner, no timeline)
+- **Empty:** "Someone needs to handle that" (diffusion of responsibility)
 
 ### Output Format
 
 ```markdown
-# Sales Meeting: {{COMPANY_NAME}}
+# Sales Intelligence: {{COMPANY_NAME}}
 
-**Date:** {{DATE}}
-**Meeting type:** {{TYPE}}
-**Duration:** [extracted from transcript]
-
-**Attendees:**
-- [Name, Role] — Nimble
-- [Name, Role] — Prospect
-
----
+**Date:** {{DATE}} | **Type:** {{TYPE}} | **Duration:** [from transcript]
+**Attendees:** [Names — Company]
 
 ## TL;DR
 
-[3-4 sentences: What's the opportunity? Where are we in the process? What's the critical next step?]
-
----
+[3-4 sentences: Opportunity summary, current position, critical next step]
 
 ## Deal Snapshot
 
-| Field | Value |
-|-------|-------|
-| **Opportunity** | [Brief description of what they need] |
-| **Estimated size** | [If discussed: budget, team size, duration] |
-| **Timeline** | [When do they want to start? Deadline pressures?] |
-| **Stage** | Discovery / Qualified / Proposal Sent / Negotiation / Verbal Yes |
-| **Temperature** | 🔥 Hot / ☀️ Warm / ❄️ Cool |
-
----
+- **Opportunity:** [What they need]
+- **Size signals:** [Budget, team size, duration if discussed]
+- **Timeline:** [When they want to start, deadline pressures]
+- **Stage:** Discovery / Qualified / Proposal / Negotiation / Verbal Yes
+- **Temperature:** Hot / Warm / Cool
 
 ## Pain Points & Needs
 
-[What problems are they trying to solve? Why now?]
+[What problems are they solving? Why now?]
 
-| Pain Point | Severity | Quote/Evidence |
-|------------|----------|----------------|
-| [Issue 1] | High/Med/Low | "[Quote]" |
-| [Issue 2] | High/Med/Low | "[Quote]" |
+- [Pain point 1] — Severity: High/Med/Low — Evidence: "[quote or paraphrase]"
+- [Pain point 2] — Severity: High/Med/Low — Evidence: "[quote or paraphrase]"
 
-**Underlying motivation:**
-[What's really driving this? Business pressure, competitive threat, internal politics, new leadership?]
+**Underlying motivation:** [Business pressure, competitive threat, new leadership, etc.]
 
----
+## Commitments
+
+**We committed to:**
+- [Action] — Owner: [Name] — Due: [Date/TBD] — Strength: Strong/Moderate/Weak
+
+**They committed to:**
+- [Action] — Owner: [Name] — Due: [Date/TBD] — Strength: Strong/Moderate/Weak
+
+## Meeting Effectiveness
+
+**Behavioral change estimate:** [X]% of this meeting will drive changed actions
+- **Decision yield:** [Assessment if relevant — were decisions made relative to time spent?]
+- **Data readiness:** [Assessment if relevant — was blocking information missing?]
+- **Circular discussion:** [Assessment if relevant — topics revisited without new info?]
+- **Intent vs. words:** [Assessment if relevant — signs of unstated concerns?] (Confidence: high/medium/low)
+
+[Omit dimensions with insufficient evidence]
 
 ## Decision Making
+[CONTENT-DEPENDENT: Include only if buying process was discussed]
 
-**Decision maker(s):**
-- [Name, Role] — [What's their stake? What do they care about?]
-
-**Influencers:**
-- [Name, Role] — [Technical evaluator? Budget holder? End user?]
-
-**Buying process:**
-[What's their process? Who else needs to approve? Procurement involved?]
-
-**Competition:**
-[Are they talking to others? Who? How do we compare?]
-
----
+- **Decision maker(s):** [Name, Role — what they care about]
+- **Influencers:** [Name, Role — their stake]
+- **Process:** [Approvals needed, procurement, timeline]
+- **Competition:** [Who else they're talking to, how we compare]
 
 ## Budget Signals
+[CONTENT-DEPENDENT: Include only if budget/pricing discussed]
 
-| Signal | Interpretation |
-|--------|----------------|
-| [What was said/implied] | [What it means] |
+- [Signal] → [Interpretation]
+- **Range:** [Explicit or inferred]
+- **Budget owner:** [Who controls the money]
 
-**Budget range:** [Explicit or inferred]
-**Budget owner:** [Who controls the money?]
-**Fiscal considerations:** [End of quarter? Budget cycle? Approval thresholds?]
+## Objections
+[CONTENT-DEPENDENT: Include only if concerns were raised]
+
+- [Concern] — Severity: High/Med/Low — Our response: [How addressed] — Resolved: Yes/Partially/No
+
+**Unspoken concerns:** [What they might worry about but didn't say] (Confidence: high/medium/low)
+
+## Prospect Sentiment
+[CONTENT-DEPENDENT: Include only if clear sentiment signals detected]
+
+- **Enthusiasm:** High / Moderate / Low / Mixed — Evidence: [signals]
+- **Pricing reaction:** Comfortable / Cautious / Concerned / Not discussed
+- **Confidence in Nimble:** High / Building / Skeptical / Unclear
+- **Urgency:** Urgent / Normal / Low priority — Evidence: [timeline pressure, competing priorities]
+- **Momentum:** Gaining / Steady / Losing / Stalled
+
+## Contribution Dynamics
+[CONTENT-DEPENDENT: Include only if notable patterns detected]
+
+- **Progress drivers:** [Who moved things forward, with evidence]
+- **Airtime/impact mismatch:** [High airtime + low impact, or low airtime + high impact]
+- **40% threshold:** [Flag any speaker who consumed >40% of talk time]
+- **Patterns:** [Assertion vs. persuasion, listening signals, position changes]
+
+## Meeting Signals
+[CONTENT-DEPENDENT: Include only categories with notable patterns]
+
+**Question quality:** [Types asked, distribution, unanswered questions]
+**Hedging patterns:** [Who hedges, in what contexts, correlation with unresolved topics]
+**Convergence quality:** [Did they explore alternatives? Early anchoring? Groupthink risk?]
+**Commitment clarity:** [Ratio of strong to weak commitments, accountability gaps]
+**Topic drift:** [Time on tangents, who brought it back, unaddressed agenda items]
+
+## Potential Issues
+[CONTENT-DEPENDENT: Include only if issues detected]
+
+- **[Category]:** [Description] — Evidence: "[quote]" — Suggested follow-up: [Action]
+
+Categories: Confusion | Misunderstanding | Hidden Disagreement | Unresolved
+
+## Your Contribution ([Speaker Name])
+[CONTENT-DEPENDENT: Include only if user opted in AND speaker found in transcript]
+
+**If speaker not found:** Instead of this section, output:
+"I couldn't find '[provided name]' in the transcript. The speakers I found are: [list speaker names/labels]. Please clarify which speaker you are, and I'll regenerate the self-assessment."
+
+### Metrics
+- Talk time: ~XX%
+- Questions asked: X (X clarifying, X challenging, X leading)
+- Ideas adopted: X
+- Progress driver: Yes/No — [brief evidence]
+
+### Observations
+- **Hedging:** [None detected / X instances — context]
+- **Interruptions:** [Interrupted others X times / Was interrupted X times]
+- **Commitments:** [Strong/Moderate/Vague] — [examples]
+- **Listening:** [Built on others' points / Primarily advanced own ideas]
+
+### Patterns to Watch
+- [Specific observation for self-improvement]
+
+### Trackable Summary
+`XX% talk | XQ | X adopted | driver:[y/n] | hedge:X | commits:[s/m/v]`
 
 ---
 
-## Objections & Concerns
+# Prospect Follow-Up
 
-| Objection | Severity | How We Addressed | Resolved? |
-|-----------|----------|------------------|-----------|
-| [Concern 1] | High/Med/Low | [Our response] | Yes/Partially/No |
-| [Concern 2] | High/Med/Low | [Our response] | Yes/Partially/No |
+[Professional thank-you email format, ~150-200 words]
 
-**Unspoken concerns:**
-[What might they be worried about but didn't say?]
+**Subject:** Following up on our conversation — {{COMPANY_NAME}} + Nimble
 
----
+Hi [Name],
 
-## Sentiment Analysis
+Thank you for taking the time to meet with us today. [1-2 sentences acknowledging what was discussed and showing you listened]
 
-### Overall Enthusiasm
-**Level:** High / Moderate / Low / Mixed
-**Evidence:** [What signals are you reading?]
+**Key points we covered:**
+- [Point 1]
+- [Point 2]
+- [Point 3]
 
-### Reaction to Pricing/Scope
-**Level:** Comfortable / Cautious / Concerned / Not Discussed
-**Evidence:** [Specific reactions when costs came up]
+**Next steps:**
+- [Our commitment with timeline]
+- [Their expected action if discussed]
 
-### Confidence in Nimble
-**Level:** High / Building / Skeptical / Unclear
-**Evidence:** [Trust signals, concerns about our capabilities]
+[Closing that matches the meeting tone — warm if warm, professional if formal]
 
-### Urgency
-**Level:** Urgent / Normal / Low Priority / Unclear
-**Evidence:** [Timeline pressure, competing priorities]
-
-### Momentum
-**Trend:** Gaining / Steady / Losing / Stalled
-**Evidence:** [Are we moving forward or spinning?]
-
----
-
-## What We Committed To
-
-- [ ] [Action item 1] — Owner: [Name] — Due: [Date]
-- [ ] [Action item 2] — Owner: [Name] — Due: [Date]
-
----
-
-## What They Committed To
-
-- [ ] [Action item 1] — Owner: [Name] — Due: [Date]
-- [ ] [Action item 2] — Owner: [Name] — Due: [Date]
-
----
-
-## Key Quotes
-
-> "[Verbatim quote that's useful for proposal or follow-up]"
-> — [Name], [context]
-
-> "[Another key quote]"
-> — [Name], [context]
-
----
-
-## Strategic Notes
-
-**What's working:**
-[What resonated? What should we double down on?]
-
-**What to adjust:**
-[What fell flat? What should we do differently?]
-
-**Risks to the deal:**
-[What could derail this?]
-
-**Recommended next steps:**
-1. [Immediate action]
-2. [Follow-up action]
-3. [Preparation for next meeting]
+Best regards,
+[Your name]
 ```
-
----
 
 ## Transcript
 
