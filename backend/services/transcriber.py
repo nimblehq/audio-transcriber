@@ -89,7 +89,8 @@ def _run_transcription(meeting_id: str, job_id: str):
 
         # Transcribe
         job_queue.update_job(job_id, stage="transcribing", progress=20)
-        model = whisperx.load_model(WHISPER_MODEL, device, compute_type=compute_type)
+        lang = metadata.language if metadata.language and metadata.language != "auto" else None
+        model = whisperx.load_model(WHISPER_MODEL, device, compute_type=compute_type, language=lang)
 
         # Estimate audio duration for time-based progress during transcription
         audio_duration_sec = len(audio) / 16000  # whisperx uses 16kHz sample rate
