@@ -61,12 +61,14 @@ class MeetingMetadata(BaseModel):
     job_id: str | None = None
     speakers: dict[str, str] = Field(default_factory=dict)
     error: str | None = None
+    context: str = ""
 
 
 class MeetingUpdate(BaseModel):
     title: str | None = None
     type: MeetingType | None = None
     speakers: dict[str, str] | None = None
+    context: str | None = None
 
 
 class MeetingSummary(BaseModel):
