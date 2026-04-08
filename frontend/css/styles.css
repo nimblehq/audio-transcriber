@@ -373,6 +373,36 @@ body {
     color: var(--text-muted);
 }
 
+/* Meeting Context */
+.meeting-context-section {
+    margin-bottom: 20px;
+}
+
+.meeting-context-section label {
+    display: block;
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--text-muted);
+    margin-bottom: 6px;
+}
+
+.meeting-context-section textarea {
+    width: 100%;
+    background: var(--bg-surface);
+    color: var(--text);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 10px 12px;
+    font-size: 14px;
+    font-family: inherit;
+    resize: vertical;
+}
+
+.meeting-context-section textarea:focus {
+    outline: none;
+    border-color: var(--primary);
+}
+
 /* Audio Player */
 .audio-player {
     background: var(--bg-surface);
