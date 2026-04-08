@@ -204,7 +204,7 @@ async def update_meeting(meeting_id: str, update: MeetingUpdate):
     if update.speakers is not None:
         metadata.speakers = update.speakers
     if update.context is not None:
-        metadata.context = update.context
+        metadata.context = update.context.strip()
 
     _save_metadata(metadata)
     return metadata
