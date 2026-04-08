@@ -11,7 +11,7 @@ const API = {
         return res.json();
     },
 
-    async createMeeting(file, title, meetingType, language, numSpeakers, preprocessAudio = true) {
+    async createMeeting(file, title, meetingType, language, numSpeakers, preprocessAudio = true, context = '') {
         const form = new FormData();
         form.append('file', file);
         form.append('title', title || '');
@@ -19,6 +19,7 @@ const API = {
         form.append('language', language || 'auto');
         form.append('num_speakers', numSpeakers || 'auto');
         form.append('preprocess_audio', preprocessAudio ? 'true' : 'false');
+        form.append('context', context || '');
         const res = await fetch('/api/meetings', { method: 'POST', body: form });
         if (!res.ok) {
             const err = await res.json();
