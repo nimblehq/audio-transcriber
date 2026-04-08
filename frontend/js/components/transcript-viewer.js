@@ -43,7 +43,7 @@ async function loadMeetingView(container, meetingId) {
                 ` : ''}
 
                 ${!isProcessing && !isError ? `
-                    <div class="meeting-context-section">
+                    <div class="form-group">
                         <label for="meeting-context">Context</label>
                         <textarea id="meeting-context" rows="3" placeholder="Add context about this meeting for better analysis...">${escapeHtml(meta.context || '')}</textarea>
                     </div>
