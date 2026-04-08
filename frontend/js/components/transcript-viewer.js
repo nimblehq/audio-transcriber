@@ -160,7 +160,7 @@ function setupContextEditor(meetingId) {
     const textarea = document.getElementById('meeting-context');
     if (!textarea) return;
 
-    let savedValue = textarea.value;
+    let savedValue = textarea.value.trim();
 
     textarea.addEventListener('blur', async () => {
         const newValue = textarea.value.trim();
