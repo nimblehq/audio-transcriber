@@ -231,4 +231,6 @@ Categories: Confusion | Misunderstanding | Hidden Disagreement | Unresolved
 
 ## Transcript
 
+[MEETING CONTEXT]
+
 [PASTE TRANSCRIPT HERE]

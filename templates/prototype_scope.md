@@ -119,4 +119,6 @@ Add:
 
 ## Transcript
 
+[MEETING CONTEXT]
+
 [PASTE TRANSCRIPT HERE]
