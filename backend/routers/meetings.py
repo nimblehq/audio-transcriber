@@ -82,6 +82,7 @@ async def create_meeting(
     language: str = Form("auto"),
     num_speakers: str = Form("auto"),
     preprocess_audio: str = Form("true"),
+    context: str = Form(""),
 ):
     # Validate file extension
     ext = Path(file.filename).suffix.lower()
@@ -135,6 +136,7 @@ async def create_meeting(
         preprocess_audio=effective_preprocess,
         status=MeetingStatus.PROCESSING,
         job_id=job.id,
+        context=context.strip(),
     )
     _save_metadata(metadata)
 
@@ -201,6 +203,8 @@ async def update_meeting(meeting_id: str, update: MeetingUpdate):
         metadata.type = update.type
     if update.speakers is not None:
         metadata.speakers = update.speakers
+    if update.context is not None:
+        metadata.context = update.context.strip()
 
     _save_metadata(metadata)
     return metadata

@@ -160,4 +160,6 @@ Analyze the transcript and produce a structured evaluation. Be specific — cite
 
 ## Transcript
 
+[MEETING CONTEXT]
+
 [PASTE TRANSCRIPT HERE]

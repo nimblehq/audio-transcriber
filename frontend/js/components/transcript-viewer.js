@@ -43,6 +43,11 @@ async function loadMeetingView(container, meetingId) {
                 ` : ''}
 
                 ${!isProcessing && !isError ? `
+                    <div class="form-group">
+                        <label for="meeting-context">Context</label>
+                        <textarea id="meeting-context" rows="3" placeholder="Add context about this meeting for better analysis...">${escapeHtml(meta.context || '')}</textarea>
+                    </div>
+
                     <div class="audio-player" id="audio-player">
                         <audio id="audio-element" preload="metadata"></audio>
                         <div class="player-controls">
@@ -89,6 +94,7 @@ async function loadMeetingView(container, meetingId) {
 
         if (!isProcessing && !isError && transcript) {
             setupAudioPlayer(meetingId);
+            setupContextEditor(meetingId);
             renderSegments(document.getElementById('transcript-tab'), transcript, meta, meetingId);
             setupScrollDetection();
         }
@@ -147,6 +153,25 @@ function setupAudioPlayer(meetingId) {
 
     speedSelect.addEventListener('change', () => {
         audio.playbackRate = parseFloat(speedSelect.value);
+    });
+}
+
+function setupContextEditor(meetingId) {
+    const textarea = document.getElementById('meeting-context');
+    if (!textarea) return;
+
+    let savedValue = textarea.value.trim();
+
+    textarea.addEventListener('blur', async () => {
+        const newValue = textarea.value.trim();
+        if (newValue === savedValue) return;
+        try {
+            await API.updateMeeting(meetingId, { context: newValue });
+            savedValue = newValue;
+            showToast('Context saved');
+        } catch (err) {
+            showToast('Failed to save context', 'error');
+        }
     });
 }
 
