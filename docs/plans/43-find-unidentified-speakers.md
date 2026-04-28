@@ -57,4 +57,8 @@ Toggled via a class on a wrapper element when `switchTab` runs (Transcript on, P
 
 ## Deviations from Plan
 
-_Populated after implementation._
+- Sidebar is anchored with `right: 24px` instead of `left: calc(50% + 480px + 24px)`. QA flagged that the original anchoring would clip the sidebar off the right edge of the viewport in the 1200–1344px width band. Anchoring to the viewport's right edge avoids the clip and reads as a clean docked panel. The trade-off is a small visual disconnect from the centered column — acceptable given the panel is a self-contained UI element.
+- Breakpoint raised from 1199px to 1247px (the actual minimum viewport width where a 240px sidebar plus a 24px gutter fits beside the 960px main column without overlap). Below 1247px the FAB takes over.
+- Architect review (auto-fixed):
+  - Added `.speakers-sidebar[hidden], .speakers-fab[hidden] { display: none !important; }` because the `display: flex` rules were overriding the `[hidden]` attribute on tab switch.
+  - Added `aria-hidden="true"` to decorative icons (person emoji, `?` flag) and `aria-controls` to the FAB.
