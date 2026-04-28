@@ -41,6 +41,11 @@ function getSpeakerColor(index) {
     return SPEAKER_COLORS[index % SPEAKER_COLORS.length];
 }
 
+function isUnidentifiedSpeaker(name) {
+    if (!name) return true;
+    return name === 'UNKNOWN' || /^SPEAKER_\d+$/.test(name);
+}
+
 function getRecentSpeakerNames() {
     try {
         return JSON.parse(localStorage.getItem('recentSpeakerNames') || '[]');
