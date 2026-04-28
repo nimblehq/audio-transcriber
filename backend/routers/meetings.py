@@ -5,10 +5,11 @@ import shutil
 import uuid
 from pathlib import Path
 
-from fastapi import APIRouter, HTTPException, UploadFile, File, Form
-from fastapi.responses import FileResponse, Response
+from fastapi import APIRouter, File, Form, HTTPException, UploadFile
+from fastapi.responses import FileResponse
 
 from backend.schemas import (
+    JobStatus,
     MeetingDetail,
     MeetingMetadata,
     MeetingStatus,
@@ -56,14 +57,16 @@ async def list_meetings():
         try:
             with open(meta_path) as f:
                 meta = MeetingMetadata(**json.load(f))
-            meetings.append(MeetingSummary(
-                id=meta.id,
-                title=meta.title,
-                type=meta.type,
-                created_at=meta.created_at,
-                duration_seconds=meta.duration_seconds,
-                status=meta.status,
-            ))
+            meetings.append(
+                MeetingSummary(
+                    id=meta.id,
+                    title=meta.title,
+                    type=meta.type,
+                    created_at=meta.created_at,
+                    duration_seconds=meta.duration_seconds,
+                    status=meta.status,
+                )
+            )
         except Exception:
             continue
 
@@ -78,6 +81,8 @@ async def create_meeting(
     meeting_type: str = Form("other"),
     language: str = Form("auto"),
     num_speakers: str = Form("auto"),
+    preprocess_audio: str = Form("true"),
+    context: str = Form(""),
 ):
     # Validate file extension
     ext = Path(file.filename).suffix.lower()
@@ -119,6 +124,8 @@ async def create_meeting(
         except ValueError:
             pass
 
+    effective_preprocess = preprocess_audio.lower() not in ("false", "0", "no")
+
     metadata = MeetingMetadata(
         id=meeting_id,
         title=effective_title,
@@ -126,8 +133,10 @@ async def create_meeting(
         audio_filename=audio_filename,
         language=effective_language,
         num_speakers=effective_num_speakers,
+        preprocess_audio=effective_preprocess,
         status=MeetingStatus.PROCESSING,
         job_id=job.id,
+        context=context.strip(),
     )
     _save_metadata(metadata)
 
@@ -137,12 +146,32 @@ async def create_meeting(
     return {"meeting_id": meeting_id, "job_id": job.id}
 
 
+@router.post("/meetings/{meeting_id}/cancel")
+async def cancel_transcription(meeting_id: str):
+    metadata = _load_metadata(meeting_id)
+
+    if metadata.status != MeetingStatus.PROCESSING:
+        raise HTTPException(status_code=409, detail="Meeting is not currently processing")
+
+    error_message = "Transcription cancelled by user"
+
+    metadata.status = MeetingStatus.ERROR
+    metadata.error = error_message
+    _save_metadata(metadata)
+
+    if metadata.job_id:
+        job_queue.update_job(metadata.job_id, status=JobStatus.FAILED, error=error_message)
+
+    return {"ok": True}
+
+
 @router.post("/meetings/{meeting_id}/retry")
 async def retry_transcription(meeting_id: str):
     metadata = _load_metadata(meeting_id)
 
     job = job_queue.create_job(meeting_id)
     metadata.status = MeetingStatus.PROCESSING
+    metadata.error = None
     metadata.job_id = job.id
     _save_metadata(metadata)
 
@@ -174,6 +203,8 @@ async def update_meeting(meeting_id: str, update: MeetingUpdate):
         metadata.type = update.type
     if update.speakers is not None:
         metadata.speakers = update.speakers
+    if update.context is not None:
+        metadata.context = update.context.strip()
 
     _save_metadata(metadata)
     return metadata
@@ -200,9 +231,7 @@ async def update_segment_speaker(meeting_id: str, update: SegmentSpeakerUpdate):
     segment.speaker = new_speaker_id
 
     # Save updated transcript
-    transcript_path.write_text(
-        json.dumps(transcript.model_dump(), ensure_ascii=False, indent=2)
-    )
+    transcript_path.write_text(json.dumps(transcript.model_dump(), ensure_ascii=False, indent=2))
 
     # Map the new speaker ID to the given name
     metadata.speakers[new_speaker_id] = update.speaker_name

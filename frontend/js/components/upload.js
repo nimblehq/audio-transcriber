@@ -61,6 +61,17 @@ function renderUpload(container) {
                     <input type="text" id="speakers-input" placeholder="Auto" value="">
                 </div>
             </div>
+            <div class="form-group">
+                <label for="context-input">Context</label>
+                <textarea id="context-input" rows="3" placeholder="What is this meeting about? Any important context for analysis..."></textarea>
+            </div>
+            <div class="form-group form-checkbox">
+                <label>
+                    <input type="checkbox" id="preprocess-checkbox" checked>
+                    Audio preprocessing
+                    <span class="form-hint">High-pass filter, noise reduction, and loudness normalization</span>
+                </label>
+            </div>
             <button type="submit" id="upload-btn" class="btn btn-primary btn-large" disabled>
                 Upload & Transcribe
             </button>
@@ -140,8 +151,10 @@ async function handleUpload(e) {
         const type = document.getElementById('type-select').value;
         const language = document.getElementById('language-select').value;
         const numSpeakers = document.getElementById('speakers-input').value.trim() || 'auto';
+        const preprocessAudio = document.getElementById('preprocess-checkbox').checked;
+        const context = document.getElementById('context-input').value.trim();
         requestNotificationPermission();
-        const result = await API.createMeeting(selectedFile, title, type, language, numSpeakers);
+        const result = await API.createMeeting(selectedFile, title, type, language, numSpeakers, preprocessAudio, context);
         App.navigate(`/meetings/${result.meeting_id}`);
     } catch (err) {
         showToast(err.message, 'error');

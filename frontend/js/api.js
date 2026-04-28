@@ -11,13 +11,15 @@ const API = {
         return res.json();
     },
 
-    async createMeeting(file, title, meetingType, language, numSpeakers) {
+    async createMeeting(file, title, meetingType, language, numSpeakers, preprocessAudio = true, context = '') {
         const form = new FormData();
         form.append('file', file);
         form.append('title', title || '');
         form.append('meeting_type', meetingType || 'other');
         form.append('language', language || 'auto');
         form.append('num_speakers', numSpeakers || 'auto');
+        form.append('preprocess_audio', preprocessAudio ? 'true' : 'false');
+        form.append('context', context || '');
         const res = await fetch('/api/meetings', { method: 'POST', body: form });
         if (!res.ok) {
             const err = await res.json();
@@ -33,6 +35,12 @@ const API = {
             body: JSON.stringify(data),
         });
         if (!res.ok) throw new Error('Failed to update meeting');
+        return res.json();
+    },
+
+    async cancelTranscription(id) {
+        const res = await fetch(`/api/meetings/${id}/cancel`, { method: 'POST' });
+        if (!res.ok) throw new Error('Failed to cancel transcription');
         return res.json();
     },
 

@@ -9,6 +9,7 @@ function renderAnalysisTab(container, meetingId, meetingType) {
                     <option value="sales" ${meetingType === 'sales' ? 'selected' : ''}>Sales</option>
                     <option value="client" ${meetingType === 'client' ? 'selected' : ''}>Client</option>
                     <option value="other" ${meetingType === 'other' ? 'selected' : ''}>Other</option>
+                    <option value="prototype">Prototype Scope</option>
                 </select>
             </div>
             <button class="btn btn-primary" id="generate-prompt-btn" onclick="handleGeneratePrompt()">
@@ -27,7 +28,14 @@ async function handleGeneratePrompt() {
     try {
         const result = await API.getTemplate(type);
         const transcript = buildPlainTextTranscript();
-        const prompt = result.template.replace('[PASTE TRANSCRIPT HERE]', transcript);
+        const context = getMeetingContext();
+        let prompt = result.template;
+        if (context) {
+            prompt = prompt.replace('[MEETING CONTEXT]', '## Meeting Context\n\n' + context);
+        } else {
+            prompt = prompt.replace('[MEETING CONTEXT]\n\n', '');
+        }
+        prompt = prompt.replace('[PASTE TRANSCRIPT HERE]', transcript);
 
         const container = document.getElementById('analysis-tab');
         renderPromptContent(container, prompt);
@@ -36,6 +44,11 @@ async function handleGeneratePrompt() {
         btn.disabled = false;
         btn.textContent = 'Generate Prompt';
     }
+}
+
+function getMeetingContext() {
+    const textarea = document.getElementById('meeting-context');
+    return textarea ? textarea.value.trim() : '';
 }
 
 function buildPlainTextTranscript() {

@@ -1,11 +1,24 @@
-from fastapi import FastAPI
-from fastapi.staticfiles import StaticFiles
-from fastapi.responses import FileResponse
+from __future__ import annotations
+
+from collections.abc import AsyncIterator
+from contextlib import asynccontextmanager
 from pathlib import Path
 
-from backend.routers import meetings, jobs, analysis
+from fastapi import FastAPI
+from fastapi.responses import FileResponse
+from fastapi.staticfiles import StaticFiles
 
-app = FastAPI(title="Meeting Transcriber")
+from backend.routers import analysis, jobs, meetings
+from backend.services.recovery import recover_stuck_meetings
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI) -> AsyncIterator[None]:
+    recover_stuck_meetings()
+    yield
+
+
+app = FastAPI(title="Meeting Transcriber", lifespan=lifespan)
 
 app.include_router(meetings.router, prefix="/api")
 app.include_router(jobs.router, prefix="/api")

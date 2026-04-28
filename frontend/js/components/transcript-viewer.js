@@ -1,6 +1,8 @@
 let currentAudio = null;
 let pollInterval = null;
 let autoScroll = true;
+let userScrolledAway = false;
+let scrollTimeout = null;
 
 function renderTranscriptView(container, meetingId) {
     container.innerHTML = '<div class="loading">Loading meeting...</div>';
@@ -27,10 +29,25 @@ async function loadMeetingView(container, meetingId) {
                     </div>
                 </div>
 
-                ${isProcessing ? `<div id="progress-section" class="progress-section"></div>` : ''}
-                ${isError ? `<div class="error-state">Transcription failed. <button class="btn btn-text" onclick="retryTranscription('${meetingId}')">Retry</button></div>` : ''}
+                ${isProcessing ? `
+                    <div id="progress-section" class="progress-section"></div>
+                    <div class="cancel-section">
+                        <button class="btn btn-text btn-cancel" onclick="handleCancelTranscription('${meetingId}')">Cancel transcription</button>
+                    </div>
+                ` : ''}
+                ${isError ? `
+                    <div class="error-state">
+                        ${meta.error ? escapeHtml(meta.error) : 'Transcription failed.'}
+                        <button class="btn btn-text" onclick="retryTranscription('${meetingId}')">Retry</button>
+                    </div>
+                ` : ''}
 
                 ${!isProcessing && !isError ? `
+                    <div class="form-group">
+                        <label for="meeting-context">Context</label>
+                        <textarea id="meeting-context" rows="3" placeholder="Add context about this meeting for better analysis...">${escapeHtml(meta.context || '')}</textarea>
+                    </div>
+
                     <div class="audio-player" id="audio-player">
                         <audio id="audio-element" preload="metadata"></audio>
                         <div class="player-controls">
@@ -77,7 +94,9 @@ async function loadMeetingView(container, meetingId) {
 
         if (!isProcessing && !isError && transcript) {
             setupAudioPlayer(meetingId);
+            setupContextEditor(meetingId);
             renderSegments(document.getElementById('transcript-tab'), transcript, meta, meetingId);
+            setupScrollDetection();
         }
     } catch (err) {
         container.innerHTML = `<div class="error-state">Failed to load meeting: ${escapeHtml(err.message)}</div>`;
@@ -137,6 +156,25 @@ function setupAudioPlayer(meetingId) {
     });
 }
 
+function setupContextEditor(meetingId) {
+    const textarea = document.getElementById('meeting-context');
+    if (!textarea) return;
+
+    let savedValue = textarea.value.trim();
+
+    textarea.addEventListener('blur', async () => {
+        const newValue = textarea.value.trim();
+        if (newValue === savedValue) return;
+        try {
+            await API.updateMeeting(meetingId, { context: newValue });
+            savedValue = newValue;
+            showToast('Context saved');
+        } catch (err) {
+            showToast('Failed to save context', 'error');
+        }
+    });
+}
+
 function renderSegments(container, transcript, meta, meetingId) {
     const speakers = { ...meta.speakers };
     const speakerIds = [...new Set(transcript.segments.map(s => s.speaker))];
@@ -183,8 +221,32 @@ function handleSpeakerClick(element, speakerId, segmentId) {
     );
 }
 
+function setupScrollDetection() {
+    const segmentsContainer = document.getElementById('segments-container');
+    if (!segmentsContainer) return;
+
+    segmentsContainer.addEventListener('wheel', () => {
+        userScrolledAway = true;
+        clearTimeout(scrollTimeout);
+    });
+
+    segmentsContainer.addEventListener('touchmove', () => {
+        userScrolledAway = true;
+        clearTimeout(scrollTimeout);
+    });
+
+    const checkbox = document.getElementById('auto-scroll-check');
+    if (checkbox) {
+        checkbox.addEventListener('change', () => {
+            autoScroll = checkbox.checked;
+            if (autoScroll) userScrolledAway = false;
+        });
+    }
+}
+
 function playFromSegment(startTime) {
     if (!currentAudio) return;
+    userScrolledAway = false;
     currentAudio.currentTime = startTime;
     currentAudio.play();
     const playPause = document.getElementById('play-pause');
@@ -206,7 +268,7 @@ function highlightCurrentSegment(currentTime) {
         }
     });
 
-    if (activeSegment && autoScroll) {
+    if (activeSegment && autoScroll && !userScrolledAway) {
         activeSegment.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
     }
 }
@@ -300,6 +362,7 @@ async function updateProgress(meetingId, jobId) {
 
         const stageLabels = {
             uploading: 'Uploading...',
+            preprocessing: 'Preprocessing audio...',
             transcribing: 'Transcribing audio...',
             aligning: 'Aligning timestamps...',
             diarizing: 'Identifying speakers...',
@@ -329,6 +392,17 @@ async function retryTranscription(meetingId) {
     }
 }
 
+async function handleCancelTranscription(meetingId) {
+    if (!confirm('Are you sure? This will stop the current transcription.')) return;
+    try {
+        await API.cancelTranscription(meetingId);
+        showToast('Transcription cancelled');
+        App.navigate(`/meetings/${meetingId}`);
+    } catch (err) {
+        showToast('Failed to cancel transcription', 'error');
+    }
+}
+
 async function handleDeleteMeeting(meetingId) {
     if (!confirm('Delete this meeting and all its files?')) return;
     try {
@@ -349,5 +423,7 @@ function cleanupTranscriptView() {
         currentAudio.pause();
         currentAudio = null;
     }
+    userScrolledAway = false;
+    clearTimeout(scrollTimeout);
     closeSpeakerPopover();
 }

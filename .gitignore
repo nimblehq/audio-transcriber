@@ -17,6 +17,7 @@ __pycache__/
 *.m4a
 *.mp3
 *.wav
+!tests/fixtures/sample.wav
 *.flac
 *.ogg
 *.aac
@@ -31,6 +32,9 @@ data/meetings/
 # Virtual environment
 .venv/
 
+# Node
+node_modules/
+
 # IDE
 .idea/
 .vscode/
@@ -40,3 +44,10 @@ data/meetings/
 # Environment variables
 .env
 .env.local
+
+# Argus
+.argus/debug/
+.argus/continue-here.md
+.argus/guardrails.md
+.argus/handoff.md
+.coverage

@@ -118,6 +118,19 @@ body {
     color: #e66;
 }
 
+.btn-cancel {
+    color: var(--danger);
+}
+
+.btn-cancel:hover {
+    color: #e66;
+}
+
+.cancel-section {
+    text-align: center;
+    margin-top: 0.5rem;
+}
+
 /* Page Header */
 .page-header {
     display: flex;
@@ -323,7 +336,8 @@ body {
 }
 
 .form-group input,
-.form-group select {
+.form-group select,
+.form-group textarea {
     width: 100%;
     padding: 10px 12px;
     background: var(--bg-surface);
@@ -335,9 +349,34 @@ body {
 }
 
 .form-group input:focus,
-.form-group select:focus {
+.form-group select:focus,
+.form-group textarea:focus {
     outline: none;
     border-color: var(--primary);
+}
+
+.form-group textarea {
+    resize: vertical;
+}
+
+.form-checkbox label {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    cursor: pointer;
+    font-size: 14px;
+    color: var(--text);
+}
+
+.form-checkbox input[type="checkbox"] {
+    width: auto;
+    margin: 0;
+    accent-color: var(--primary);
+}
+
+.form-hint {
+    font-size: 12px;
+    color: var(--text-muted);
 }
 
 /* Audio Player */

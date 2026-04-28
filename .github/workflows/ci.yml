@@ -1,0 +1,48 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  lint:
+    name: Lint & Format
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install Ruff
+        run: pip install 'ruff>=0.9.0'
+
+      - name: Ruff check
+        run: ruff check .
+
+      - name: Ruff format check
+        run: ruff format --check .
+
+  test:
+    name: Test & Coverage
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install dependencies
+        run: |
+          pip install --upgrade pip
+          pip install 'fastapi>=0.115.0' 'uvicorn[standard]>=0.34.0' 'python-multipart>=0.0.20' 'python-dotenv>=1.0.0'
+          pip install 'pytest>=8.0.0' 'pytest-asyncio>=0.24.0' 'httpx>=0.27.0' 'pytest-cov>=6.0.0'
+
+      - name: Run tests with coverage
+        run: pytest --cov --cov-report=term-missing --cov-fail-under=80

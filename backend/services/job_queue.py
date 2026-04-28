@@ -32,6 +32,11 @@ class JobQueue:
         with self._lock:
             return self._jobs.get(job_id)
 
+    def clear(self):
+        """Remove all jobs. Used for test cleanup."""
+        with self._lock:
+            self._jobs.clear()
+
     def update_job(
         self,
         job_id: str,
