@@ -12,11 +12,11 @@
 |---------|------|-------|
 | Summary | Required | Always include |
 | Decisions | Required | Always include (note "none" if applicable) |
-| Action Items | Required | Always include |
+| Action Items | Required | Always include; includes next-step driver as an engagement indicator |
 | Meeting Effectiveness | Required | Internal only |
 | Project Status | Content-dependent | Include if progress/blockers discussed |
 | Technical Discussions | Content-dependent | Include if technical topics covered |
-| Client Sentiment | Content-dependent | Internal only; include if sentiment signals detected |
+| Client Sentiment | Content-dependent | Internal only; include if sentiment signals detected; includes rapport / banter assessment |
 | Contribution Dynamics | Content-dependent | Include if notable patterns |
 | Meeting Signals | Content-dependent | Include if notable signals detected |
 | Potential Issues | Content-dependent | Include if issues detected |
@@ -27,6 +27,8 @@
 
 The Client-Shareable Summary must NEVER include:
 - Client sentiment analysis or mood assessments
+- Rapport / banter assessments
+- Next-step driver attribution or engagement-signal interpretation (the client-shareable Action Items lists tasks only, never who drove them or what that signals)
 - Private observations about client behavior or politics
 - Risk assessments about the client relationship
 - Potential Issues section content
@@ -68,6 +70,10 @@ Extract key information for project management and follow-up. Target ~400-500 wo
 - Include confidence levels for interpretive observations (high/medium/low)
 - Acknowledge transcript-only limitations: When tone would materially affect interpretation (e.g., "that's fine" could be agreement or frustration), note that audio context would clarify
 
+**Engagement heuristics (weight these in your assessment):**
+- **Who's pushing for next actions matters.** A client driving the next steps generally signals healthy engagement and momentum; if Nimble is consistently the only one proposing follow-ups, that may indicate cooling interest or unclear value.
+- **Banter generally indicates rapport.** Casual exchanges, jokes, and personal warmth typically reflect a healthy working relationship. Sterile, all-business meetings with no warmth can be an early signal of strain.
+
 **For commitment assessment, use this spectrum:**
 - **Strong:** "I will deliver X by Friday" (clear verb, owner, deadline)
 - **Moderate:** "I'll look into that this week" (owner, rough timeline, vague deliverable)
@@ -95,6 +101,8 @@ Extract key information for project management and follow-up. Target ~400-500 wo
 [If no decisions: "No explicit decisions made in this meeting."]
 
 ## Action Items
+
+**Next-step driver:** Client / Nimble / Mutual — [who proposed or pushed for the next actions; client-driven generally indicates healthy engagement]
 
 **Nimble:**
 - [Task] — Owner: [Name] — Due: [Date/TBD] — Strength: Strong/Moderate/Weak
@@ -136,6 +144,7 @@ Extract key information for project management and follow-up. Target ~400-500 wo
 
 - **Overall mood:** Positive / Neutral / Concerned / Frustrated
 - **Project confidence:** High / Moderate / Low
+- **Rapport:** Strong / Building / Cool / Distant — Evidence: [banter, casual exchanges, personal warmth; banter generally indicates a healthy relationship]
 - **Key concerns:** [What's on their mind?]
 - **Notable quotes:** "[Anything important worth remembering]"
 
