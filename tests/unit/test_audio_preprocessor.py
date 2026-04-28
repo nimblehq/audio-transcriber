@@ -6,6 +6,9 @@ from pathlib import Path
 import pytest
 
 np = pytest.importorskip("numpy")
+pytest.importorskip("soundfile")
+pytest.importorskip("noisereduce")
+pytest.importorskip("pyloudnorm")
 
 from backend.services.audio_preprocessor import (  # noqa: E402
     HIGHPASS_CUTOFF_HZ,
