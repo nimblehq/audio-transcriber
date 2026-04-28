@@ -96,4 +96,4 @@ Prosody runs regardless of detected language. Only SER stays English-gated.
 
 ## Deviations from Plan
 
-_Populated after implementation._
+- **Added `too_short` unavailable marker.** QA flagged that sub-`MIN_SEGMENT_SECONDS` segments were silently skipped, violating the truth that every segment must have either prosody data or an explicit unavailable marker. The plan's "skipped silently" behavior was changed to emit a `ProsodyUnavailable` with `reason="too_short"`. Driven by the QA verdict.
