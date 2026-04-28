@@ -58,8 +58,9 @@ def _run_audio_analysis(
             reason=f"language_not_supported:{detected_language}",
         )
 
-    job_queue.update_job(job_id, stage="emotion_analysis", progress=92)
     try:
+        job_queue.update_job(job_id, stage="emotion_analysis", progress=92)
+
         from backend.services.emotion_analyzer import analyze_segments
 
         segment_models = [TranscriptSegment(**s) for s in segments]
@@ -255,10 +256,14 @@ def _run_transcription(meeting_id: str, job_id: str):
             "language": detected_language,
         }
 
-        # Audio analysis (best-effort, must not fail the meeting)
+        # Audio analysis (best-effort, must not fail the meeting — AC8/BR-1.4)
         audio_analysis: AudioAnalysis | None = None
         if metadata.audio_analysis_enabled:
-            audio_analysis = _run_audio_analysis(job_id, audio, segments, detected_language)
+            try:
+                audio_analysis = _run_audio_analysis(job_id, audio, segments, detected_language)
+            except Exception as e:
+                logger.exception("Audio analysis raised unexpectedly; continuing with meeting")
+                audio_analysis = AudioAnalysis(status=AudioAnalysisStatus.FAILED, reason=str(e))
 
         # Check if cancelled before saving results
         if _is_cancelled(metadata_path):
