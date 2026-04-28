@@ -112,12 +112,8 @@ def _run_audio_analysis(
     """
     segment_models = [TranscriptSegment(**s) for s in segments]
 
-    emotion_status, emotion_reason, emotions = _run_emotion_analysis(
-        job_id, audio, segment_models, detected_language
-    )
-    prosody_status, prosody_reason, prosody, prosody_unavailable = _run_prosody_analysis(
-        job_id, audio, segment_models
-    )
+    emotion_status, emotion_reason, emotions = _run_emotion_analysis(job_id, audio, segment_models, detected_language)
+    prosody_status, prosody_reason, prosody, prosody_unavailable = _run_prosody_analysis(job_id, audio, segment_models)
 
     overall = _roll_up_status(emotion_status, prosody_status)
     overall_reason: str | None = None

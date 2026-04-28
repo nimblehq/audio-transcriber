@@ -19,6 +19,8 @@ from backend.schemas import (
     MeetingSummary,
     MeetingType,
     MeetingUpdate,
+    ProsodyAnnotation,
+    ProsodyUnavailable,
     SegmentSpeakerUpdate,
     Transcript,
     TranscriptSegment,
@@ -291,3 +293,93 @@ class TestAudioAnalysisFields:
 
     def test_job_stage_emotion_analysis(self):
         assert JobStage.EMOTION_ANALYSIS == "emotion_analysis"
+
+    def test_job_stage_prosody_extraction(self):
+        assert JobStage.PROSODY_EXTRACTION == "prosody_extraction"
+
+
+class TestProsodyAnnotation:
+    def test_creation(self):
+        p = ProsodyAnnotation(
+            segment_id="seg-1",
+            speaker="SPEAKER_00",
+            start=0.0,
+            end=2.5,
+            volume_mean=0.6,
+            volume_variance=0.02,
+            pitch_mean=180.5,
+            pitch_variance=320.4,
+            speaking_rate=145.0,
+            pause_ratio=0.12,
+        )
+        assert p.segment_id == "seg-1"
+        assert p.volume_mean == 0.6
+        assert p.pitch_mean == 180.5
+        assert p.speaking_rate == 145.0
+
+    def test_missing_required_field(self):
+        with pytest.raises(ValidationError):
+            ProsodyAnnotation(
+                segment_id="seg-1",
+                speaker="SPEAKER_00",
+                start=0.0,
+                end=2.5,
+                volume_mean=0.6,
+                volume_variance=0.02,
+                pitch_mean=180.5,
+                pitch_variance=320.4,
+                speaking_rate=145.0,
+            )
+
+
+class TestProsodyUnavailable:
+    def test_creation(self):
+        u = ProsodyUnavailable(segment_id="seg-1", reason="non_speech")
+        assert u.segment_id == "seg-1"
+        assert u.reason == "non_speech"
+
+
+class TestAudioAnalysisProsodyFields:
+    def test_audio_analysis_default_prosody_empty(self):
+        a = AudioAnalysis(status=AudioAnalysisStatus.UNAVAILABLE)
+        assert a.prosody == []
+        assert a.prosody_unavailable == []
+        assert a.prosody_status is None
+        assert a.prosody_reason is None
+        assert a.emotion_status is None
+        assert a.emotion_reason is None
+
+    def test_audio_analysis_with_prosody(self):
+        prosody = [
+            ProsodyAnnotation(
+                segment_id="seg-1",
+                speaker="SPEAKER_00",
+                start=0.0,
+                end=1.0,
+                volume_mean=0.5,
+                volume_variance=0.01,
+                pitch_mean=150.0,
+                pitch_variance=20.0,
+                speaking_rate=120.0,
+                pause_ratio=0.1,
+            )
+        ]
+        a = AudioAnalysis(
+            status=AudioAnalysisStatus.COMPLETED,
+            prosody_status=AudioAnalysisStatus.COMPLETED,
+            prosody=prosody,
+            prosody_unavailable=[ProsodyUnavailable(segment_id="seg-2", reason="non_speech")],
+        )
+        assert len(a.prosody) == 1
+        assert len(a.prosody_unavailable) == 1
+        assert a.prosody_unavailable[0].reason == "non_speech"
+
+    def test_audio_analysis_per_stage_status(self):
+        a = AudioAnalysis(
+            status=AudioAnalysisStatus.COMPLETED,
+            emotion_status=AudioAnalysisStatus.UNAVAILABLE,
+            emotion_reason="language_not_supported:fr",
+            prosody_status=AudioAnalysisStatus.COMPLETED,
+        )
+        assert a.emotion_status == AudioAnalysisStatus.UNAVAILABLE
+        assert a.prosody_status == AudioAnalysisStatus.COMPLETED
