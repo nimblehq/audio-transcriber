@@ -84,3 +84,15 @@ data/meetings/{id}/    # Per-meeting: metadata.json, transcript.json, audio file
 - Theme toggle persisted in localStorage
 - Recent speaker names persisted in localStorage
 - No notification system currently exists
+
+## Git Workflow
+
+**This repository uses trunk-based development. This section overrides the global "Always follow Gitflow" instruction for all agents and contributors working in this repo.**
+
+- **Trunk:** `main` is the single long-lived branch and the source of truth. There is no `develop` branch.
+- **Feature branches:** branch off `main`, named `feature/<issue#>-<slug>` (e.g., `feature/44-trunk-based-development`). Keep them short-lived (target: under a few days).
+- **Pull requests:** every change reaches `main` via a PR. Direct pushes to `main` are rejected by branch protection. PR titles follow `[#NN] <description>`.
+- **Merging:** squash-merge only. Merge commits and rebase-merges are disabled at the repo level. Linear history is enforced.
+- **CI gate:** `Lint & Format` and `Test & Coverage` must pass before a PR is mergeable. Approvals are not required (solo project; CI is the gate).
+- **Hotfixes:** use the same flow — short-lived branch off `main`, PR, squash-merge. There is no special hotfix process.
+- **Releases:** tag a commit on `main` with bare semver (e.g., `1.2.0`). No `v` prefix, no release branch. Update `CHANGELOG.md` in the same PR that introduces the release-worthy change, or in a dedicated release PR.
