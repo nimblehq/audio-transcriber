@@ -846,6 +846,41 @@ body {
     overflow-y: auto;
 }
 
+/* Back to Top */
+.back-to-top {
+    position: fixed;
+    bottom: 24px;
+    right: 24px;
+    background: var(--bg-surface);
+    border: 1px solid var(--border);
+    color: var(--text);
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    cursor: pointer;
+    font-size: 18px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 2px 8px var(--shadow);
+    transition: background-color 0.15s, opacity 0.2s, transform 0.2s;
+    z-index: 998;
+    opacity: 0;
+    transform: translateY(8px);
+    pointer-events: none;
+    font-family: inherit;
+}
+
+.back-to-top-visible {
+    opacity: 1;
+    transform: translateY(0);
+    pointer-events: auto;
+}
+
+.back-to-top:hover {
+    background: var(--bg-hover);
+}
+
 /* Theme Toggle */
 .theme-toggle {
     position: fixed;
