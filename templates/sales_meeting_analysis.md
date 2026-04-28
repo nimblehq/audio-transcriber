@@ -11,14 +11,14 @@
 | Section | Tier | Notes |
 |---------|------|-------|
 | TL;DR | Required | Always include |
-| Deal Snapshot | Required | Always include |
+| Deal Snapshot | Required | Always include; includes next-step driver as a buying-signal indicator |
 | Pain Points & Needs | Required | Always include |
 | Commitments | Required | Always include |
 | Meeting Effectiveness | Required | Internal only |
 | Decision Making | Content-dependent | Include if buying process discussed |
 | Budget Signals | Content-dependent | Include if budget/pricing discussed |
 | Objections | Content-dependent | Include if concerns raised |
-| Prospect Sentiment | Content-dependent | Include if sentiment signals detected |
+| Prospect Sentiment | Content-dependent | Include if sentiment signals detected; includes rapport / banter assessment |
 | Contribution Dynamics | Content-dependent | Include if notable patterns |
 | Meeting Signals | Content-dependent | Include if notable signals detected |
 | Potential Issues | Content-dependent | Include if issues detected |
@@ -58,6 +58,10 @@ Extract actionable sales intelligence from this conversation. Target ~400-500 wo
 - Include confidence levels for interpretive observations (high/medium/low)
 - Acknowledge transcript-only limitations: When tone would materially affect interpretation (e.g., "that's fine" could be agreement or frustration), note that audio context would clarify
 
+**Engagement heuristics (weight these in your assessment):**
+- **Prospect-driven next steps are a positive buying signal.** When the prospect is the one proposing or pushing for next actions, that generally indicates real intent to move forward. When we have to pull next steps out of them, that often signals weak interest.
+- **Banter generally indicates rapport and engagement.** Casual exchanges, jokes, personal asides, and warm openings/closings typically reflect a healthy conversation. Sterile, all-business meetings with no warmth often correlate with cool prospects.
+
 **For commitment assessment, use this spectrum:**
 - **Strong:** "I will deliver X by Friday" (clear verb, owner, deadline)
 - **Moderate:** "I'll look into that this week" (owner, rough timeline, vague deliverable)
@@ -83,6 +87,7 @@ Extract actionable sales intelligence from this conversation. Target ~400-500 wo
 - **Timeline:** [When they want to start, deadline pressures]
 - **Stage:** Discovery / Qualified / Proposal / Negotiation / Verbal Yes
 - **Temperature:** Hot / Warm / Cool
+- **Next-step driver:** Prospect / Us / Mutual — Evidence: [who proposed or pushed for the next actions; prospect-driven is a positive buying signal]
 
 ## Pain Points & Needs
 
@@ -141,6 +146,7 @@ Extract actionable sales intelligence from this conversation. Target ~400-500 wo
 - **Confidence in Nimble:** High / Building / Skeptical / Unclear
 - **Urgency:** Urgent / Normal / Low priority — Evidence: [timeline pressure, competing priorities]
 - **Momentum:** Gaining / Steady / Losing / Stalled
+- **Rapport:** Strong / Building / Cool / Distant — Evidence: [banter, jokes, personal exchanges, warm openings/closings; banter generally indicates engagement]
 
 ## Contribution Dynamics
 [CONTENT-DEPENDENT: Include only if notable patterns detected]
