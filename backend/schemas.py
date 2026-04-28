@@ -33,6 +33,7 @@ class JobStage(str, Enum):
     ALIGNING = "aligning"
     DIARIZING = "diarizing"
     EMOTION_ANALYSIS = "emotion_analysis"
+    PROSODY_EXTRACTION = "prosody_extraction"
 
 
 class EmotionCategory(str, Enum):
@@ -61,10 +62,34 @@ class EmotionAnnotation(BaseModel):
     low_confidence: bool
 
 
+class ProsodyAnnotation(BaseModel):
+    segment_id: str
+    speaker: str
+    start: float
+    end: float
+    volume_mean: float
+    volume_variance: float
+    pitch_mean: float
+    pitch_variance: float
+    speaking_rate: float
+    pause_ratio: float
+
+
+class ProsodyUnavailable(BaseModel):
+    segment_id: str
+    reason: str
+
+
 class AudioAnalysis(BaseModel):
     status: AudioAnalysisStatus
     reason: str | None = None
+    emotion_status: AudioAnalysisStatus | None = None
+    emotion_reason: str | None = None
     emotions: list[EmotionAnnotation] = Field(default_factory=list)
+    prosody_status: AudioAnalysisStatus | None = None
+    prosody_reason: str | None = None
+    prosody: list[ProsodyAnnotation] = Field(default_factory=list)
+    prosody_unavailable: list[ProsodyUnavailable] = Field(default_factory=list)
 
 
 class TranscriptSegment(BaseModel):
