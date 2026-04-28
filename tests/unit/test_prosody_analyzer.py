@@ -14,6 +14,7 @@ from backend.services.prosody_analyzer import (
     NON_SPEECH_RMS_FLOOR,
     REASON_EXTRACTION_FAILED,
     REASON_NON_SPEECH,
+    REASON_TOO_SHORT,
     SAMPLE_RATE,
     _compute_pause_ratio,
     _compute_rms,
@@ -221,15 +222,19 @@ class TestCrossSpeakerComparability:
         assert 230.0 < by_id["b0"].pitch_mean < 250.0
 
 
-class TestShortSegmentsSkipped:
-    def test_segment_below_min_duration_skipped(self):
+class TestShortSegmentsRecorded:
+    """Truth: every segment must have either a prosody annotation or an
+    explicit unavailable marker. Sub-MIN_SEGMENT_SECONDS segments are too
+    short to analyze, so they get a `too_short` marker."""
+
+    def test_segment_below_min_duration_recorded_as_too_short(self):
         audio = _sine(220.0, 2.0)
         segments = [_segment("tiny", 0.0, 0.1, text="hi")]
         annotations, unavailable = analyze_segments(audio, segments)
-        # Below MIN_SEGMENT_SECONDS the analyzer skips silently — neither
-        # produces an annotation nor an unavailable marker.
         assert annotations == []
-        assert unavailable == []
+        assert len(unavailable) == 1
+        assert unavailable[0].segment_id == "tiny"
+        assert unavailable[0].reason == REASON_TOO_SHORT
 
 
 class TestNonSpeechFloor:

@@ -25,6 +25,7 @@ PAUSE_FRAME_DURATION = 0.025  # 25 ms frames
 
 REASON_NON_SPEECH = "non_speech"
 REASON_EXTRACTION_FAILED = "prosody_unavailable"
+REASON_TOO_SHORT = "too_short"
 
 
 class _Segment(Protocol):
@@ -133,22 +134,29 @@ class _RawFeatures:
         self.frame_rms = frame_rms
 
 
-def _extract_segment_features(audio_array, segment: _Segment, sampling_rate: int) -> _RawFeatures | None:
+class _TooShort:
+    """Sentinel: segment was too short to extract features from."""
+
+
+def _extract_segment_features(audio_array, segment: _Segment, sampling_rate: int):
     """Extract raw (un-normalized) features for one segment.
 
-    Returns None if the segment is too short to analyze.
+    Returns `_RawFeatures` on success or the `_TooShort` sentinel when the
+    segment is below the analyzable duration. The sentinel lets the caller
+    record an unavailable marker so every segment has either prosody data
+    or an explicit explanation (story #50 truth).
     """
     import numpy as np
 
     duration = segment.end - segment.start
     if duration < MIN_SEGMENT_SECONDS:
-        return None
+        return _TooShort
 
     start_idx = int(segment.start * sampling_rate)
     end_idx = int(segment.end * sampling_rate)
     chunk = np.asarray(audio_array, dtype=np.float64)[start_idx:end_idx]
     if chunk.size == 0:
-        return None
+        return _TooShort
 
     rms = _compute_rms(chunk)
 
@@ -227,7 +235,8 @@ def analyze_segments(
             unavailable.append(ProsodyUnavailable(segment_id=segment.id, reason=REASON_EXTRACTION_FAILED))
             continue
 
-        if features is None:
+        if features is _TooShort:
+            unavailable.append(ProsodyUnavailable(segment_id=segment.id, reason=REASON_TOO_SHORT))
             continue
 
         if _is_non_speech(features):
