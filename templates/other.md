@@ -52,6 +52,8 @@ Analyze the transcript and produce a structured summary. Target ~300-400 words t
 - Include confidence levels for interpretive observations (high/medium/low)
 - Acknowledge transcript-only limitations: When tone would materially affect interpretation (e.g., "that's fine" could be agreement or frustration), note that audio context would clarify
 
+**Engagement heuristic:** Banter, jokes, and casual personal exchanges generally indicate rapport and engagement. Surface this as a positive signal when present.
+
 **For commitment assessment, use this spectrum:**
 - **Strong:** "I will deliver X by Friday" (clear verb, owner, deadline)
 - **Moderate:** "I'll look into that this week" (owner, rough timeline, vague deliverable)
@@ -117,6 +119,7 @@ Analyze the transcript and produce a structured summary. Target ~300-400 words t
 **Convergence quality:** [Did they explore alternatives? Early anchoring? Groupthink risk?]
 **Commitment clarity:** [Ratio of strong to weak commitments, accountability gaps]
 **Topic drift:** [Time on tangents, who brought it back, unaddressed agenda items]
+**Rapport / banter:** [Casual exchanges, jokes, personal warmth — generally a positive engagement signal when present]
 
 ## Potential Issues
 [CONTENT-DEPENDENT: Include only if issues detected]
