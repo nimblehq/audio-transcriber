@@ -27,6 +27,8 @@
 
 The Client-Shareable Summary must NEVER include:
 - Client sentiment analysis or mood assessments
+- Rapport / banter assessments
+- Next-step driver attribution or engagement-signal interpretation (the client-shareable Action Items lists tasks only, never who drove them or what that signals)
 - Private observations about client behavior or politics
 - Risk assessments about the client relationship
 - Potential Issues section content
