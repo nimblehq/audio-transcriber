@@ -6,7 +6,14 @@ import threading
 import time
 from pathlib import Path
 
-from backend.schemas import JobStatus, MeetingMetadata, MeetingStatus
+from backend.schemas import (
+    AudioAnalysis,
+    AudioAnalysisStatus,
+    JobStatus,
+    MeetingMetadata,
+    MeetingStatus,
+    TranscriptSegment,
+)
 from backend.services.job_queue import job_queue
 from config import HF_TOKEN, MEETINGS_DIR, WHISPER_BATCH_SIZE, WHISPER_DEVICE, WHISPER_MODEL
 
@@ -34,6 +41,33 @@ def _is_cancelled(metadata_path: Path) -> bool:
         return meta.get("status") != MeetingStatus.PROCESSING.value
     except Exception:
         return False
+
+
+def _run_audio_analysis(
+    job_id: str,
+    audio,
+    segments: list[dict],
+    detected_language: str,
+) -> AudioAnalysis:
+    """Run SER on transcript segments. Returns an AudioAnalysis whose status
+    reflects whether the analysis ran, was skipped, or failed."""
+    if detected_language != "en":
+        logger.info("Skipping emotion analysis: language %s is not supported", detected_language)
+        return AudioAnalysis(
+            status=AudioAnalysisStatus.UNAVAILABLE,
+            reason=f"language_not_supported:{detected_language}",
+        )
+
+    job_queue.update_job(job_id, stage="emotion_analysis", progress=92)
+    try:
+        from backend.services.emotion_analyzer import analyze_segments
+
+        segment_models = [TranscriptSegment(**s) for s in segments]
+        annotations = analyze_segments(audio_path=None, segments=segment_models, audio_array=audio)
+        return AudioAnalysis(status=AudioAnalysisStatus.COMPLETED, emotions=annotations)
+    except Exception as e:
+        logger.exception("Emotion analysis failed")
+        return AudioAnalysis(status=AudioAnalysisStatus.FAILED, reason=str(e))
 
 
 def _run_transcription(meeting_id: str, job_id: str):
@@ -221,6 +255,11 @@ def _run_transcription(meeting_id: str, job_id: str):
             "language": detected_language,
         }
 
+        # Audio analysis (best-effort, must not fail the meeting)
+        audio_analysis: AudioAnalysis | None = None
+        if metadata.audio_analysis_enabled:
+            audio_analysis = _run_audio_analysis(job_id, audio, segments, detected_language)
+
         # Check if cancelled before saving results
         if _is_cancelled(metadata_path):
             logger.info("Transcription for meeting %s was cancelled, discarding results", meeting_id)
@@ -230,6 +269,13 @@ def _run_transcription(meeting_id: str, job_id: str):
         transcript_path = meeting_dir / "transcript.json"
         with open(transcript_path, "w", encoding="utf-8") as f:
             json.dump(transcript, f, ensure_ascii=False, indent=2)
+
+        # Save audio analysis (if produced) and record its status on metadata
+        if audio_analysis is not None:
+            audio_analysis_path = meeting_dir / "audio_analysis.json"
+            with open(audio_analysis_path, "w", encoding="utf-8") as f:
+                json.dump(audio_analysis.model_dump(mode="json"), f, ensure_ascii=False, indent=2)
+            metadata.audio_analysis_status = audio_analysis.status
 
         # Update metadata
         duration = segments[-1]["end"] if segments else 0
