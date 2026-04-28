@@ -847,6 +847,11 @@ body {
 }
 
 /* Speakers Sidebar */
+.speakers-sidebar[hidden],
+.speakers-fab[hidden] {
+    display: none !important;
+}
+
 .speakers-sidebar {
     position: fixed;
     top: 96px;
