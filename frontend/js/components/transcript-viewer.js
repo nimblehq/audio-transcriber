@@ -86,6 +86,12 @@ async function loadMeetingView(container, meetingId) {
                     <div id="plaintext-tab" class="tab-content" hidden></div>
                     <div id="analysis-tab" class="tab-content" hidden></div>
 
+                    <aside id="speakers-sidebar" class="speakers-sidebar" aria-label="Speakers"></aside>
+                    <button class="speakers-fab" id="speakers-fab" title="Show speakers" aria-label="Show speakers" aria-expanded="false" aria-controls="speakers-sidebar">
+                        <span class="speakers-fab-icon" aria-hidden="true">👤</span>
+                        <span class="speakers-fab-badge" id="speakers-fab-badge" hidden></span>
+                    </button>
+
                     <button class="back-to-top" id="back-to-top" title="Back to top" aria-label="Back to top">↑</button>
                 ` : ''}
             </div>
@@ -101,6 +107,7 @@ async function loadMeetingView(container, meetingId) {
             renderSegments(document.getElementById('transcript-tab'), transcript, meta, meetingId);
             setupScrollDetection();
             setupBackToTop();
+            setupSpeakersSidebar();
         }
     } catch (err) {
         container.innerHTML = `<div class="error-state">Failed to load meeting: ${escapeHtml(err.message)}</div>`;
@@ -181,12 +188,19 @@ function setupContextEditor(meetingId) {
 
 function renderSegments(container, transcript, meta, meetingId) {
     const speakers = { ...meta.speakers };
-    const speakerIds = [...new Set(transcript.segments.map(s => s.speaker))];
+    const speakerIds = [];
+    const firstSegmentIndex = {};
+    transcript.segments.forEach((seg, i) => {
+        if (!(seg.speaker in firstSegmentIndex)) {
+            firstSegmentIndex[seg.speaker] = i;
+            speakerIds.push(seg.speaker);
+        }
+    });
     const speakerColorMap = {};
     speakerIds.forEach((id, i) => { speakerColorMap[id] = getSpeakerColor(i); });
 
     // Store speakers data globally so onclick handlers can reference it without inline JSON
-    window._speakerEditorState = { speakers, meetingId };
+    window._speakerEditorState = { speakers, meetingId, speakerIds, speakerColorMap, firstSegmentIndex };
 
     container.innerHTML = `
         <div class="segments" id="segments-container">
@@ -194,7 +208,7 @@ function renderSegments(container, transcript, meta, meetingId) {
                 const speakerName = speakers[seg.speaker] || seg.speaker;
                 const color = speakerColorMap[seg.speaker];
                 return `
-                    <div class="segment" id="seg-${i}" data-start="${seg.start}" data-end="${seg.end}">
+                    <div class="segment" id="seg-${i}" data-start="${seg.start}" data-end="${seg.end}" data-segment-id="${escapeHtml(seg.id)}">
                         <div class="segment-header">
                             <span class="segment-time">${formatTimestamp(seg.start)}</span>
                             <span class="speaker-label" style="background-color: ${color}" data-speaker="${seg.speaker}"
@@ -223,6 +237,99 @@ function handleSpeakerClick(element, speakerId, segmentId) {
         () => App.navigate('/meetings/' + state.meetingId),
         segmentId
     );
+}
+
+function renderSpeakersSidebar() {
+    const sidebar = document.getElementById('speakers-sidebar');
+    const fabBadge = document.getElementById('speakers-fab-badge');
+    const state = window._speakerEditorState;
+    if (!sidebar || !state || !state.speakerIds) return;
+
+    const { speakers, speakerIds, speakerColorMap } = state;
+    const total = speakerIds.length;
+    const unnamedCount = speakerIds.filter(id => isUnidentifiedSpeaker(speakers[id] || id)).length;
+
+    const headerText = unnamedCount === 0
+        ? `${total} speaker${total === 1 ? '' : 's'}, all named`
+        : `${unnamedCount} of ${total} unnamed`;
+
+    sidebar.innerHTML = `
+        <div class="speakers-sidebar-header">
+            <span class="speakers-sidebar-title">Speakers</span>
+            <button class="speakers-sidebar-close" id="speakers-sidebar-close" title="Close" aria-label="Close speakers panel">×</button>
+        </div>
+        <div class="speakers-sidebar-summary">${escapeHtml(headerText)}</div>
+        <ul class="speakers-list">
+            ${speakerIds.map(id => {
+                const name = speakers[id] || id;
+                const unnamed = isUnidentifiedSpeaker(name);
+                const color = speakerColorMap[id];
+                return `
+                    <li class="speaker-row${unnamed ? ' speaker-row-unnamed' : ''}"
+                        data-speaker-id="${escapeHtml(id)}"
+                        onclick="handleSpeakerRowClick('${escapeHtml(id)}')"
+                        title="Jump to first segment and edit">
+                        <span class="speaker-row-dot" style="background-color: ${color}"></span>
+                        <span class="speaker-row-name">${escapeHtml(unnamed ? 'Unnamed speaker' : name)}</span>
+                        ${unnamed ? '<span class="speaker-row-flag" aria-hidden="true">?</span>' : ''}
+                    </li>
+                `;
+            }).join('')}
+        </ul>
+    `;
+
+    if (fabBadge) {
+        if (unnamedCount > 0) {
+            fabBadge.textContent = unnamedCount;
+            fabBadge.hidden = false;
+        } else {
+            fabBadge.hidden = true;
+        }
+    }
+
+    const closeBtn = document.getElementById('speakers-sidebar-close');
+    if (closeBtn) closeBtn.addEventListener('click', () => closeSpeakersSidebar());
+}
+
+function setupSpeakersSidebar() {
+    renderSpeakersSidebar();
+
+    const fab = document.getElementById('speakers-fab');
+    if (fab) {
+        fab.addEventListener('click', () => {
+            const sidebar = document.getElementById('speakers-sidebar');
+            if (!sidebar) return;
+            const opened = sidebar.classList.toggle('speakers-sidebar-open');
+            fab.setAttribute('aria-expanded', opened ? 'true' : 'false');
+        });
+    }
+}
+
+function closeSpeakersSidebar() {
+    const sidebar = document.getElementById('speakers-sidebar');
+    const fab = document.getElementById('speakers-fab');
+    if (sidebar) sidebar.classList.remove('speakers-sidebar-open');
+    if (fab) fab.setAttribute('aria-expanded', 'false');
+}
+
+function handleSpeakerRowClick(speakerId) {
+    const state = window._speakerEditorState;
+    if (!state) return;
+    const segIndex = state.firstSegmentIndex[speakerId];
+    if (segIndex == null) return;
+
+    const segmentEl = document.getElementById(`seg-${segIndex}`);
+    if (!segmentEl) return;
+
+    closeSpeakersSidebar();
+    segmentEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    userScrolledAway = true;
+
+    const speakerLabel = segmentEl.querySelector('.speaker-label');
+    const segId = segmentEl.dataset.segmentId;
+    if (speakerLabel && segId) {
+        handleSpeakerClick(speakerLabel, speakerId, segId);
+    }
 }
 
 function setupScrollDetection() {
@@ -333,6 +440,13 @@ function switchTab(tabName, meetingId, meetingType) {
     const tabEl = document.getElementById(`${tabName}-tab`);
     tabEl.hidden = false;
     tabEl.classList.add('tab-content-active');
+
+    const sidebar = document.getElementById('speakers-sidebar');
+    const fab = document.getElementById('speakers-fab');
+    const onTranscript = tabName === 'transcript';
+    if (sidebar) sidebar.hidden = !onTranscript;
+    if (fab) fab.hidden = !onTranscript;
+    if (!onTranscript) closeSpeakersSidebar();
 
     if (tabName === 'plaintext') {
         renderPlainTextTab(tabEl);
