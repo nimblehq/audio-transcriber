@@ -82,6 +82,7 @@ async def create_meeting(
     language: str = Form("auto"),
     num_speakers: str = Form("auto"),
     preprocess_audio: str = Form("true"),
+    audio_analysis_enabled: str = Form("false"),
     context: str = Form(""),
 ):
     # Validate file extension
@@ -125,6 +126,7 @@ async def create_meeting(
             pass
 
     effective_preprocess = preprocess_audio.lower() not in ("false", "0", "no")
+    effective_audio_analysis = audio_analysis_enabled.lower() in ("true", "1", "yes", "on")
 
     metadata = MeetingMetadata(
         id=meeting_id,
@@ -134,6 +136,7 @@ async def create_meeting(
         language=effective_language,
         num_speakers=effective_num_speakers,
         preprocess_audio=effective_preprocess,
+        audio_analysis_enabled=effective_audio_analysis,
         status=MeetingStatus.PROCESSING,
         job_id=job.id,
         context=context.strip(),
@@ -172,6 +175,7 @@ async def retry_transcription(meeting_id: str):
     job = job_queue.create_job(meeting_id)
     metadata.status = MeetingStatus.PROCESSING
     metadata.error = None
+    metadata.audio_analysis_status = None
     metadata.job_id = job.id
     _save_metadata(metadata)
 
