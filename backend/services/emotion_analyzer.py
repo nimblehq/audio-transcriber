@@ -46,9 +46,7 @@ def _aggregate_scores(raw_scores: list[dict]) -> dict[EmotionCategory, float]:
     return category_scores
 
 
-def _classify_segment(
-    classifier, audio_array, segment: _Segment
-) -> EmotionAnnotation | None:
+def _classify_segment(classifier, audio_array, segment: _Segment) -> EmotionAnnotation | None:
     duration = segment.end - segment.start
     if duration < MIN_SEGMENT_SECONDS:
         return None

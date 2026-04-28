@@ -156,6 +156,33 @@ class TestCreateMeeting:
         meta = json.loads((meetings_dir / meeting_id / "metadata.json").read_text())
         assert meta["preprocess_audio"] is False
 
+    @patch("backend.routers.meetings.start_transcription")
+    async def test_audio_analysis_defaults_to_disabled(
+        self, mock_start, client, sample_audio: Path, meetings_dir: Path
+    ):
+        with open(sample_audio, "rb") as f:
+            res = await client.post(
+                "/api/meetings",
+                files={"file": ("test.wav", f, "audio/wav")},
+                data={"title": "Default Audio Analysis"},
+            )
+        meeting_id = res.json()["meeting_id"]
+        meta = json.loads((meetings_dir / meeting_id / "metadata.json").read_text())
+        assert meta["audio_analysis_enabled"] is False
+        assert meta["audio_analysis_status"] is None
+
+    @patch("backend.routers.meetings.start_transcription")
+    async def test_audio_analysis_can_be_enabled(self, mock_start, client, sample_audio: Path, meetings_dir: Path):
+        with open(sample_audio, "rb") as f:
+            res = await client.post(
+                "/api/meetings",
+                files={"file": ("test.wav", f, "audio/wav")},
+                data={"title": "Audio Analysis On", "audio_analysis_enabled": "true"},
+            )
+        meeting_id = res.json()["meeting_id"]
+        meta = json.loads((meetings_dir / meeting_id / "metadata.json").read_text())
+        assert meta["audio_analysis_enabled"] is True
+
 
 class TestGetMeeting:
     async def test_existing_meeting(self, client, populated_meeting):
@@ -263,6 +290,25 @@ class TestRetryTranscription:
     async def test_retry_nonexistent_meeting(self, client):
         res = await client.post("/api/meetings/nonexistent/retry")
         assert res.status_code == 404
+
+    @patch("backend.routers.meetings.start_transcription")
+    async def test_retry_preserves_audio_analysis_opt_in(
+        self, mock_start, client, meetings_dir: Path, sample_metadata_error: dict, sample_audio: Path
+    ):
+        meeting_id = sample_metadata_error["id"]
+        sample_metadata_error["audio_analysis_enabled"] = True
+        sample_metadata_error["audio_analysis_status"] = "failed"
+        meeting_dir = meetings_dir / meeting_id
+        meeting_dir.mkdir()
+        (meeting_dir / "metadata.json").write_text(json.dumps(sample_metadata_error))
+        shutil.copy(sample_audio, meeting_dir / sample_metadata_error["audio_filename"])
+
+        res = await client.post(f"/api/meetings/{meeting_id}/retry")
+        assert res.status_code == 200
+
+        meta = json.loads((meetings_dir / meeting_id / "metadata.json").read_text())
+        assert meta["audio_analysis_enabled"] is True
+        assert meta["audio_analysis_status"] is None
 
 
 class TestDeleteMeeting:

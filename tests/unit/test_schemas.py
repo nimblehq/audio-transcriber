@@ -6,6 +6,10 @@ import pytest
 from pydantic import ValidationError
 
 from backend.schemas import (
+    AudioAnalysis,
+    AudioAnalysisStatus,
+    EmotionAnnotation,
+    EmotionCategory,
     JobInfo,
     JobStage,
     JobStatus,
@@ -235,3 +239,55 @@ class TestSegmentSpeakerUpdate:
         u = SegmentSpeakerUpdate(segment_id="seg-1", speaker_name="Alice")
         assert u.segment_id == "seg-1"
         assert u.speaker_name == "Alice"
+
+
+class TestAudioAnalysisFields:
+    def test_metadata_default_audio_analysis_disabled(self):
+        m = MeetingMetadata(id="m1", title="Test")
+        assert m.audio_analysis_enabled is False
+        assert m.audio_analysis_status is None
+
+    def test_metadata_with_audio_analysis(self):
+        m = MeetingMetadata(
+            id="m1",
+            title="Test",
+            audio_analysis_enabled=True,
+            audio_analysis_status=AudioAnalysisStatus.COMPLETED,
+        )
+        assert m.audio_analysis_enabled is True
+        assert m.audio_analysis_status == AudioAnalysisStatus.COMPLETED
+
+    def test_audio_analysis_status_values(self):
+        assert AudioAnalysisStatus.COMPLETED == "completed"
+        assert AudioAnalysisStatus.FAILED == "failed"
+        assert AudioAnalysisStatus.UNAVAILABLE == "unavailable"
+
+    def test_emotion_category_values(self):
+        assert EmotionCategory.NEUTRAL == "neutral"
+        assert EmotionCategory.CONFIDENT == "confident"
+        assert EmotionCategory.FRUSTRATED == "frustrated"
+        assert EmotionCategory.UNCERTAIN == "uncertain"
+        assert EmotionCategory.ENGAGED == "engaged"
+        assert EmotionCategory.DISENGAGED == "disengaged"
+
+    def test_emotion_annotation_creation(self):
+        a = EmotionAnnotation(
+            segment_id="seg-1",
+            speaker="SPEAKER_00",
+            start=0.0,
+            end=2.5,
+            primary_emotion=EmotionCategory.ENGAGED,
+            confidence=0.78,
+            emotion_scores={"engaged": 0.78, "neutral": 0.22},
+            low_confidence=False,
+        )
+        assert a.primary_emotion == EmotionCategory.ENGAGED
+        assert a.low_confidence is False
+
+    def test_audio_analysis_default_emotions_empty(self):
+        a = AudioAnalysis(status=AudioAnalysisStatus.UNAVAILABLE, reason="language_not_supported:fr")
+        assert a.emotions == []
+        assert a.reason == "language_not_supported:fr"
+
+    def test_job_stage_emotion_analysis(self):
+        assert JobStage.EMOTION_ANALYSIS == "emotion_analysis"
