@@ -107,7 +107,13 @@ body {
 
 .btn-play {
     font-size: 18px;
-    padding: 8px 14px;
+    padding: 0;
+    width: 40px;
+    height: 36px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    line-height: 1;
 }
 
 .btn-delete {
