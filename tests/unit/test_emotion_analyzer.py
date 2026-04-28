@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import numpy as np
 import pytest
 
 from backend.schemas import EmotionCategory, TranscriptSegment
@@ -52,7 +51,9 @@ def _ambiguous_scores():
 
 @pytest.fixture
 def audio():
-    return np.zeros(16000 * 10, dtype=np.float32)
+    # Stand-in waveform: the fake classifier doesn't read it, only its length
+    # (via `_classify_segment`'s slice + len() check) matters.
+    return [0.0] * (16000 * 10)
 
 
 @pytest.fixture
