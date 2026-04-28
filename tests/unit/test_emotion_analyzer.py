@@ -28,24 +28,22 @@ def _high_engaged_scores():
         {"label": "happy", "score": 0.7},
         {"label": "surprised", "score": 0.15},
         {"label": "neutral", "score": 0.05},
-        {"label": "sad", "score": 0.04},
-        {"label": "calm", "score": 0.03},
-        {"label": "angry", "score": 0.02},
-        {"label": "fearful", "score": 0.005},
-        {"label": "disgust", "score": 0.005},
+        {"label": "sad", "score": 0.05},
+        {"label": "angry", "score": 0.03},
+        {"label": "fearful", "score": 0.01},
+        {"label": "disgust", "score": 0.01},
     ]
 
 
 def _ambiguous_scores():
     return [
-        {"label": "neutral", "score": 0.25},
-        {"label": "calm", "score": 0.2},
-        {"label": "sad", "score": 0.15},
-        {"label": "happy", "score": 0.15},
+        {"label": "neutral", "score": 0.3},
+        {"label": "sad", "score": 0.2},
+        {"label": "happy", "score": 0.2},
         {"label": "surprised", "score": 0.1},
         {"label": "fearful", "score": 0.1},
-        {"label": "angry", "score": 0.03},
-        {"label": "disgust", "score": 0.02},
+        {"label": "angry", "score": 0.05},
+        {"label": "disgust", "score": 0.05},
     ]
 
 
@@ -65,8 +63,8 @@ def segments():
 
 
 class TestRawLabelMapping:
-    def test_all_eight_raw_labels_mapped(self):
-        expected_labels = {"angry", "calm", "disgust", "fearful", "happy", "neutral", "sad", "surprised"}
+    def test_all_model_labels_mapped(self):
+        expected_labels = {"angry", "disgust", "fearful", "happy", "neutral", "sad", "surprised"}
         assert set(RAW_LABEL_TO_CATEGORY.keys()) == expected_labels
 
     def test_mapping_targets_only_spec_categories(self):
