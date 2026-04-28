@@ -30,7 +30,14 @@ This project requires **Python 3.12 specifically** (not 3.11, not 3.13 -- some d
 
 ```bash
 # macOS
-brew install python@3.12 ffmpeg
+brew install python@3.12 ffmpeg ffmpeg@7
+# Symlink ffmpeg@7's versioned dylibs so torchcodec (a transitive
+# dependency of pyannote.audio) can find them at runtime:
+for lib in libavcodec.61 libavdevice.61 libavfilter.10 libavformat.61 \
+           libavutil.59 libpostproc.58 libswresample.5 libswscale.8; do
+  ln -sf "/opt/homebrew/opt/ffmpeg@7/lib/${lib}.dylib" \
+         "/opt/homebrew/lib/${lib}.dylib"
+done
 ```
 
 ```bash
