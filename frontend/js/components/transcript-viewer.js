@@ -3,6 +3,7 @@ let pollInterval = null;
 let autoScroll = true;
 let userScrolledAway = false;
 let scrollTimeout = null;
+let backToTopHandler = null;
 
 function renderTranscriptView(container, meetingId) {
     container.innerHTML = '<div class="loading">Loading meeting...</div>';
@@ -84,6 +85,8 @@ async function loadMeetingView(container, meetingId) {
                     <div id="transcript-tab" class="tab-content tab-content-active"></div>
                     <div id="plaintext-tab" class="tab-content" hidden></div>
                     <div id="analysis-tab" class="tab-content" hidden></div>
+
+                    <button class="back-to-top" id="back-to-top" title="Back to top" aria-label="Back to top">↑</button>
                 ` : ''}
             </div>
         `;
@@ -97,6 +100,7 @@ async function loadMeetingView(container, meetingId) {
             setupContextEditor(meetingId);
             renderSegments(document.getElementById('transcript-tab'), transcript, meta, meetingId);
             setupScrollDetection();
+            setupBackToTop();
         }
     } catch (err) {
         container.innerHTML = `<div class="error-state">Failed to load meeting: ${escapeHtml(err.message)}</div>`;
@@ -242,6 +246,21 @@ function setupScrollDetection() {
             if (autoScroll) userScrolledAway = false;
         });
     }
+}
+
+function setupBackToTop() {
+    const btn = document.getElementById('back-to-top');
+    if (!btn) return;
+
+    backToTopHandler = () => {
+        btn.classList.toggle('back-to-top-visible', window.scrollY > 300);
+    };
+    window.addEventListener('scroll', backToTopHandler, { passive: true });
+    backToTopHandler();
+
+    btn.addEventListener('click', () => {
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+    });
 }
 
 function playFromSegment(startTime) {
@@ -425,5 +444,9 @@ function cleanupTranscriptView() {
     }
     userScrolledAway = false;
     clearTimeout(scrollTimeout);
+    if (backToTopHandler) {
+        window.removeEventListener('scroll', backToTopHandler);
+        backToTopHandler = null;
+    }
     closeSpeakerPopover();
 }
