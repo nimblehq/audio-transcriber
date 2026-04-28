@@ -32,6 +32,39 @@ class JobStage(str, Enum):
     TRANSCRIBING = "transcribing"
     ALIGNING = "aligning"
     DIARIZING = "diarizing"
+    EMOTION_ANALYSIS = "emotion_analysis"
+
+
+class EmotionCategory(str, Enum):
+    NEUTRAL = "neutral"
+    CONFIDENT = "confident"
+    FRUSTRATED = "frustrated"
+    UNCERTAIN = "uncertain"
+    ENGAGED = "engaged"
+    DISENGAGED = "disengaged"
+
+
+class AudioAnalysisStatus(str, Enum):
+    COMPLETED = "completed"
+    FAILED = "failed"
+    UNAVAILABLE = "unavailable"
+
+
+class EmotionAnnotation(BaseModel):
+    segment_id: str
+    speaker: str
+    start: float
+    end: float
+    primary_emotion: EmotionCategory
+    confidence: float
+    emotion_scores: dict[str, float]
+    low_confidence: bool
+
+
+class AudioAnalysis(BaseModel):
+    status: AudioAnalysisStatus
+    reason: str | None = None
+    emotions: list[EmotionAnnotation] = Field(default_factory=list)
 
 
 class TranscriptSegment(BaseModel):
@@ -58,6 +91,8 @@ class MeetingMetadata(BaseModel):
     language: str = "auto"
     num_speakers: int | None = None
     preprocess_audio: bool = True
+    audio_analysis_enabled: bool = False
+    audio_analysis_status: AudioAnalysisStatus | None = None
     job_id: str | None = None
     speakers: dict[str, str] = Field(default_factory=dict)
     error: str | None = None
