@@ -87,8 +87,8 @@ async function loadMeetingView(container, meetingId) {
                     <div id="analysis-tab" class="tab-content" hidden></div>
 
                     <aside id="speakers-sidebar" class="speakers-sidebar" aria-label="Speakers"></aside>
-                    <button class="speakers-fab" id="speakers-fab" title="Show speakers" aria-label="Show speakers" aria-expanded="false">
-                        <span class="speakers-fab-icon">👤</span>
+                    <button class="speakers-fab" id="speakers-fab" title="Show speakers" aria-label="Show speakers" aria-expanded="false" aria-controls="speakers-sidebar">
+                        <span class="speakers-fab-icon" aria-hidden="true">👤</span>
                         <span class="speakers-fab-badge" id="speakers-fab-badge" hidden></span>
                     </button>
 
@@ -271,7 +271,7 @@ function renderSpeakersSidebar() {
                         title="Jump to first segment and edit">
                         <span class="speaker-row-dot" style="background-color: ${color}"></span>
                         <span class="speaker-row-name">${escapeHtml(unnamed ? 'Unnamed speaker' : name)}</span>
-                        ${unnamed ? '<span class="speaker-row-flag">?</span>' : ''}
+                        ${unnamed ? '<span class="speaker-row-flag" aria-hidden="true">?</span>' : ''}
                     </li>
                 `;
             }).join('')}
