@@ -6,9 +6,9 @@ import wave
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
-from backend.schemas import JobStatus, MeetingStatus
+from backend.schemas import AudioAnalysisStatus, JobStatus, MeetingStatus
 from backend.services.job_queue import JobQueue
-from backend.services.transcriber import _get_device, _is_cancelled
+from backend.services.transcriber import _get_device, _is_cancelled, _run_audio_analysis
 
 
 def _create_test_audio(path: Path) -> None:
@@ -492,3 +492,64 @@ class TestStartTranscription:
             time.sleep(0.05)
 
             mock_run.assert_called_once_with("m1", "j1")
+
+
+class TestRunAudioAnalysis:
+    """Covers the inline call site that the analyzer unit tests don't exercise."""
+
+    def _segments(self):
+        return [
+            {"id": "seg_0000", "start": 0.0, "end": 1.0, "speaker": "SPEAKER_00", "text": "hi"},
+        ]
+
+    def test_unsupported_language_returns_unavailable_without_running_model(self):
+        result = _run_audio_analysis(job_id="j1", audio=None, segments=self._segments(), detected_language="fr")
+        assert result.status == AudioAnalysisStatus.UNAVAILABLE
+        assert result.reason == "language_not_supported:fr"
+        assert result.emotions == []
+
+    def test_unknown_language_returns_unavailable(self):
+        result = _run_audio_analysis(job_id="j1", audio=None, segments=self._segments(), detected_language="unknown")
+        assert result.status == AudioAnalysisStatus.UNAVAILABLE
+
+    def test_english_runs_analyzer_and_returns_completed(self):
+        with patch("backend.services.emotion_analyzer.analyze_segments", return_value=[]) as mock_run:
+            with patch("backend.services.transcriber.job_queue.update_job"):
+                result = _run_audio_analysis(
+                    job_id="j1",
+                    audio=MagicMock(),
+                    segments=self._segments(),
+                    detected_language="en",
+                )
+        assert result.status == AudioAnalysisStatus.COMPLETED
+        assert result.emotions == []
+        mock_run.assert_called_once()
+
+    def test_analyzer_failure_returns_failed_status_not_raises(self):
+        with patch(
+            "backend.services.emotion_analyzer.analyze_segments",
+            side_effect=RuntimeError("model crashed"),
+        ):
+            with patch("backend.services.transcriber.job_queue.update_job"):
+                result = _run_audio_analysis(
+                    job_id="j1",
+                    audio=MagicMock(),
+                    segments=self._segments(),
+                    detected_language="en",
+                )
+        assert result.status == AudioAnalysisStatus.FAILED
+        assert "model crashed" in result.reason
+
+    def test_job_queue_failure_does_not_raise(self):
+        # Defensive: even if update_job blows up, the function must return FAILED, not raise.
+        with patch(
+            "backend.services.transcriber.job_queue.update_job",
+            side_effect=RuntimeError("queue down"),
+        ):
+            result = _run_audio_analysis(
+                job_id="j1",
+                audio=MagicMock(),
+                segments=self._segments(),
+                detected_language="en",
+            )
+        assert result.status == AudioAnalysisStatus.FAILED
