@@ -385,6 +385,40 @@ body {
     color: var(--text-muted);
 }
 
+.form-disclosure {
+    margin-top: 8px;
+    margin-left: 24px;
+    padding: 12px 14px;
+    background: var(--bg-surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    font-size: 13px;
+    color: var(--text-muted);
+}
+
+.form-disclosure-heading {
+    font-weight: 500;
+    color: var(--text);
+    margin-bottom: 6px;
+}
+
+.form-disclosure ul {
+    margin: 0 0 8px 18px;
+}
+
+.form-disclosure li {
+    margin: 2px 0;
+}
+
+.form-disclosure-cost {
+    color: var(--warning);
+    margin-bottom: 6px;
+}
+
+.form-disclosure-note {
+    font-style: italic;
+}
+
 /* Audio Player */
 .audio-player {
     background: var(--bg-surface);

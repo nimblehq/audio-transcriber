@@ -5,6 +5,10 @@ python-dotenv>=1.0.0
 whisperx @ git+https://github.com/m-bain/whisperX.git
 torch
 torchaudio
+# Pinned to match torch 2.8 ABI. Newer torchcodec releases (0.10+) target
+# torch 2.10+ and fail to load on macOS with torch 2.8. Requires FFmpeg 4-7
+# at runtime (see README — install ffmpeg@7 on macOS).
+torchcodec==0.7.0
 noisereduce>=3.0.0
 pyloudnorm>=0.1.1
 soundfile>=0.12.0

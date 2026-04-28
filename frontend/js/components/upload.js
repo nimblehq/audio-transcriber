@@ -72,6 +72,28 @@ function renderUpload(container) {
                     <span class="form-hint">High-pass filter, noise reduction, and loudness normalization</span>
                 </label>
             </div>
+            <div class="form-group form-checkbox">
+                <label>
+                    <input type="checkbox" id="audio-analysis-checkbox">
+                    Audio emotional analysis
+                </label>
+                <div class="form-disclosure">
+                    <p class="form-disclosure-heading">What you get</p>
+                    <ul>
+                        <li>Per-speaker emotion classification</li>
+                        <li>Prosody signals (volume, pitch, pace)</li>
+                        <li>Interaction dynamics (interruptions, hesitations)</li>
+                        <li>Word-tone mismatches that hint at hidden disagreement</li>
+                    </ul>
+                    <p class="form-disclosure-cost">
+                        Adds 8–17 minutes to a 1-hour meeting (roughly +50% processing time).
+                    </p>
+                    <p class="form-disclosure-note">
+                        Currently optimized for English. Results may be less reliable for other languages,
+                        and analysis is skipped entirely when the detected language isn't supported.
+                    </p>
+                </div>
+            </div>
             <button type="submit" id="upload-btn" class="btn btn-primary btn-large" disabled>
                 Upload & Transcribe
             </button>
@@ -152,9 +174,10 @@ async function handleUpload(e) {
         const language = document.getElementById('language-select').value;
         const numSpeakers = document.getElementById('speakers-input').value.trim() || 'auto';
         const preprocessAudio = document.getElementById('preprocess-checkbox').checked;
+        const audioAnalysisEnabled = document.getElementById('audio-analysis-checkbox').checked;
         const context = document.getElementById('context-input').value.trim();
         requestNotificationPermission();
-        const result = await API.createMeeting(selectedFile, title, type, language, numSpeakers, preprocessAudio, context);
+        const result = await API.createMeeting(selectedFile, title, type, language, numSpeakers, preprocessAudio, context, audioAnalysisEnabled);
         App.navigate(`/meetings/${result.meeting_id}`);
     } catch (err) {
         showToast(err.message, 'error');
