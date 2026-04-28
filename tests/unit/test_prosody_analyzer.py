@@ -162,7 +162,6 @@ class TestPerSegmentFailureTolerance:
             _segment("boom", 1.0, 2.0, text="more words now"),
         ]
 
-        original_extract = None
         from backend.services import prosody_analyzer as mod
 
         original_extract = mod._extract_segment_features
@@ -180,6 +179,46 @@ class TestPerSegmentFailureTolerance:
         assert len(unavailable) == 1
         assert unavailable[0].segment_id == "boom"
         assert unavailable[0].reason == REASON_EXTRACTION_FAILED
+
+
+class TestCrossSpeakerComparability:
+    """AC 4 — prosody features are comparable across speakers within a meeting."""
+
+    def test_volume_normalized_consistently_across_speakers(self):
+        # Speaker A loud, Speaker B quiet — the normalized volume should
+        # reflect the actual amplitude difference, not be reset per speaker.
+        loud = _sine(220.0, 1.0, amplitude=0.4)
+        quiet = _sine(180.0, 1.0, amplitude=0.1)
+        audio = np.concatenate([loud, quiet])
+        segments = [
+            _segment("a0", 0.0, 1.0, text="speaker a talking loudly", speaker="SPEAKER_A"),
+            _segment("b0", 1.0, 2.0, text="speaker b talking quietly", speaker="SPEAKER_B"),
+        ]
+        annotations, _ = analyze_segments(audio, segments)
+        by_id = {a.segment_id: a for a in annotations}
+        # Speakers are distinct
+        assert by_id["a0"].speaker == "SPEAKER_A"
+        assert by_id["b0"].speaker == "SPEAKER_B"
+        # Both volumes in 0-1 range (BR-2.2)
+        assert 0.0 <= by_id["a0"].volume_mean <= 1.0
+        assert 0.0 <= by_id["b0"].volume_mean <= 1.0
+        # Normalization captures the actual amplitude ratio across speakers
+        assert by_id["a0"].volume_mean > by_id["b0"].volume_mean
+
+    def test_pitch_in_raw_hz_for_cross_speaker_comparison(self):
+        # Different pitches per speaker — pitch_mean should be in Hz,
+        # not normalized away.
+        speaker_a = _sine(120.0, 1.0)  # lower-pitched
+        speaker_b = _sine(240.0, 1.0)  # higher-pitched
+        audio = np.concatenate([speaker_a, speaker_b])
+        segments = [
+            _segment("a0", 0.0, 1.0, text="speaker a", speaker="SPEAKER_A"),
+            _segment("b0", 1.0, 2.0, text="speaker b", speaker="SPEAKER_B"),
+        ]
+        annotations, _ = analyze_segments(audio, segments)
+        by_id = {a.segment_id: a for a in annotations}
+        assert 110.0 < by_id["a0"].pitch_mean < 130.0
+        assert 230.0 < by_id["b0"].pitch_mean < 250.0
 
 
 class TestShortSegmentsSkipped:
