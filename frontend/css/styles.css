@@ -860,7 +860,7 @@ body {
     max-height: calc(100vh - 120px);
     background: var(--bg-surface);
     border: 1px solid var(--border);
-    border-radius: var(--radius-sm);
+    border-radius: var(--radius);
     box-shadow: 0 2px 8px var(--shadow);
     padding: 12px 0;
     z-index: 50;
