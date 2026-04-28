@@ -855,7 +855,7 @@ body {
 .speakers-sidebar {
     position: fixed;
     top: 96px;
-    left: calc(50% + 480px + 24px);
+    right: 24px;
     width: 240px;
     max-height: calc(100vh - 120px);
     background: var(--bg-surface);
@@ -1008,7 +1008,8 @@ body {
     justify-content: center;
 }
 
-@media (max-width: 1199px) {
+/* Below this, the 240px sidebar would overlap the 960px main column. */
+@media (max-width: 1247px) {
     .speakers-sidebar {
         left: auto;
         right: 24px;
