@@ -87,7 +87,7 @@ Extract actionable sales intelligence from this conversation. Target ~400-500 wo
 - **Timeline:** [When they want to start, deadline pressures]
 - **Stage:** Discovery / Qualified / Proposal / Negotiation / Verbal Yes
 - **Temperature:** Hot / Warm / Cool
-- **Next-step driver:** Prospect / Us / Mutual — Evidence: [who proposed or pushed for the next actions; prospect-driven is a positive buying signal]
+- **Next-step driver:** Prospect / Us / Mutual — Evidence: [who proposed or pushed for the next actions; prospect-driven generally signals real intent to move forward]
 
 ## Pain Points & Needs
 
