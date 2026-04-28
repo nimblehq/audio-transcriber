@@ -43,32 +43,98 @@ def _is_cancelled(metadata_path: Path) -> bool:
         return False
 
 
-def _run_audio_analysis(
+def _run_emotion_analysis(
     job_id: str,
     audio,
-    segments: list[dict],
+    segment_models: list[TranscriptSegment],
     detected_language: str,
-) -> AudioAnalysis:
-    """Run SER on transcript segments. Returns an AudioAnalysis whose status
-    reflects whether the analysis ran, was skipped, or failed."""
+) -> tuple[AudioAnalysisStatus, str | None, list]:
+    """Run SER. Returns (status, reason, annotations)."""
     if detected_language != "en":
         logger.info("Skipping emotion analysis: language %s is not supported", detected_language)
-        return AudioAnalysis(
-            status=AudioAnalysisStatus.UNAVAILABLE,
-            reason=f"language_not_supported:{detected_language}",
-        )
+        return AudioAnalysisStatus.UNAVAILABLE, f"language_not_supported:{detected_language}", []
 
     try:
         job_queue.update_job(job_id, stage="emotion_analysis", progress=92)
 
         from backend.services.emotion_analyzer import analyze_segments
 
-        segment_models = [TranscriptSegment(**s) for s in segments]
         annotations = analyze_segments(audio_path=None, segments=segment_models, audio_array=audio)
-        return AudioAnalysis(status=AudioAnalysisStatus.COMPLETED, emotions=annotations)
+        return AudioAnalysisStatus.COMPLETED, None, annotations
     except Exception as e:
         logger.exception("Emotion analysis failed")
-        return AudioAnalysis(status=AudioAnalysisStatus.FAILED, reason=str(e))
+        return AudioAnalysisStatus.FAILED, str(e), []
+
+
+def _run_prosody_analysis(
+    job_id: str,
+    audio,
+    segment_models: list[TranscriptSegment],
+) -> tuple[AudioAnalysisStatus, str | None, list, list]:
+    """Run prosody extraction (language-agnostic, BR-2.1).
+
+    Returns (status, reason, annotations, unavailable_markers).
+    """
+    try:
+        job_queue.update_job(job_id, stage="prosody_extraction", progress=95)
+
+        from backend.services.prosody_analyzer import analyze_segments as analyze_prosody
+
+        annotations, unavailable = analyze_prosody(audio_array=audio, segments=segment_models)
+        return AudioAnalysisStatus.COMPLETED, None, annotations, unavailable
+    except Exception as e:
+        logger.exception("Prosody extraction failed")
+        return AudioAnalysisStatus.FAILED, str(e), [], []
+
+
+def _roll_up_status(*statuses: AudioAnalysisStatus) -> AudioAnalysisStatus:
+    """Combine per-stage statuses into the pipeline's overall status.
+
+    COMPLETED if any stage produced output. FAILED only when every applicable
+    stage failed. UNAVAILABLE only when every stage was skipped.
+    """
+    if any(s == AudioAnalysisStatus.COMPLETED for s in statuses):
+        return AudioAnalysisStatus.COMPLETED
+    if any(s == AudioAnalysisStatus.FAILED for s in statuses):
+        return AudioAnalysisStatus.FAILED
+    return AudioAnalysisStatus.UNAVAILABLE
+
+
+def _run_audio_analysis(
+    job_id: str,
+    audio,
+    segments: list[dict],
+    detected_language: str,
+) -> AudioAnalysis:
+    """Run audio analysis stages (SER + prosody). Each stage is best-effort and
+    reports its own status; the rolled-up status reflects whether the pipeline
+    produced any usable output.
+    """
+    segment_models = [TranscriptSegment(**s) for s in segments]
+
+    emotion_status, emotion_reason, emotions = _run_emotion_analysis(
+        job_id, audio, segment_models, detected_language
+    )
+    prosody_status, prosody_reason, prosody, prosody_unavailable = _run_prosody_analysis(
+        job_id, audio, segment_models
+    )
+
+    overall = _roll_up_status(emotion_status, prosody_status)
+    overall_reason: str | None = None
+    if overall != AudioAnalysisStatus.COMPLETED:
+        overall_reason = emotion_reason or prosody_reason
+
+    return AudioAnalysis(
+        status=overall,
+        reason=overall_reason,
+        emotion_status=emotion_status,
+        emotion_reason=emotion_reason,
+        emotions=emotions,
+        prosody_status=prosody_status,
+        prosody_reason=prosody_reason,
+        prosody=prosody,
+        prosody_unavailable=prosody_unavailable,
+    )
 
 
 def _run_transcription(meeting_id: str, job_id: str):
