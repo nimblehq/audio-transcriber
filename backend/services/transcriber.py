@@ -87,6 +87,38 @@ def _run_prosody_analysis(
         return AudioAnalysisStatus.FAILED, str(e), [], []
 
 
+def _run_interaction_analysis(
+    job_id: str,
+    segment_models: list[TranscriptSegment],
+    diarize_turns: list[tuple[float, float, str]] | None,
+) -> tuple[AudioAnalysisStatus, str | None, list, list, bool]:
+    """Run interaction pattern detection (language-agnostic).
+
+    Returns (status, reason, events, segment_interactions, dominant_speaker_limitation).
+    Without raw PyAnnote turns (no diarization), the stage is unavailable.
+    """
+    if not diarize_turns:
+        logger.info("Skipping interaction analysis: no diarization turns available")
+        return AudioAnalysisStatus.UNAVAILABLE, "diarization_unavailable", [], [], False
+
+    try:
+        job_queue.update_job(job_id, stage="interaction_analysis", progress=97)
+
+        from backend.services.interaction_analyzer import analyze as analyze_interactions
+
+        result = analyze_interactions(transcript_segments=segment_models, diarize_turns=diarize_turns)
+        return (
+            AudioAnalysisStatus.COMPLETED,
+            None,
+            result.events,
+            result.segment_interactions,
+            result.dominant_speaker_limitation,
+        )
+    except Exception as e:
+        logger.exception("Interaction analysis failed")
+        return AudioAnalysisStatus.FAILED, str(e), [], [], False
+
+
 def _roll_up_status(*statuses: AudioAnalysisStatus) -> AudioAnalysisStatus:
     """Combine per-stage statuses into the pipeline's overall status.
 
@@ -105,20 +137,28 @@ def _run_audio_analysis(
     audio,
     segments: list[dict],
     detected_language: str,
+    diarize_turns: list[tuple[float, float, str]] | None = None,
 ) -> AudioAnalysis:
-    """Run audio analysis stages (SER + prosody). Each stage is best-effort and
-    reports its own status; the rolled-up status reflects whether the pipeline
-    produced any usable output.
+    """Run audio analysis stages (SER + prosody + interactions). Each stage is
+    best-effort and reports its own status; the rolled-up status reflects
+    whether the pipeline produced any usable output.
     """
     segment_models = [TranscriptSegment(**s) for s in segments]
 
     emotion_status, emotion_reason, emotions = _run_emotion_analysis(job_id, audio, segment_models, detected_language)
     prosody_status, prosody_reason, prosody, prosody_unavailable = _run_prosody_analysis(job_id, audio, segment_models)
+    (
+        interaction_status,
+        interaction_reason,
+        interactions,
+        segment_interactions,
+        dominant_speaker_limitation,
+    ) = _run_interaction_analysis(job_id, segment_models, diarize_turns)
 
-    overall = _roll_up_status(emotion_status, prosody_status)
+    overall = _roll_up_status(emotion_status, prosody_status, interaction_status)
     overall_reason: str | None = None
     if overall != AudioAnalysisStatus.COMPLETED:
-        overall_reason = emotion_reason or prosody_reason
+        overall_reason = emotion_reason or prosody_reason or interaction_reason
 
     return AudioAnalysis(
         status=overall,
@@ -130,6 +170,11 @@ def _run_audio_analysis(
         prosody_reason=prosody_reason,
         prosody=prosody,
         prosody_unavailable=prosody_unavailable,
+        interaction_status=interaction_status,
+        interaction_reason=interaction_reason,
+        interactions=interactions,
+        segment_interactions=segment_interactions,
+        dominant_speaker_limitation=dominant_speaker_limitation,
     )
 
 
@@ -285,6 +330,7 @@ def _run_transcription(meeting_id: str, job_id: str):
                 torch.cuda.empty_cache()
 
         # Diarize
+        diarize_turns: list[tuple[float, float, str]] | None = None
         if HF_TOKEN:
             job_queue.update_job(job_id, stage="diarizing", progress=70)
             diarize_model = DiarizationPipeline(
@@ -296,6 +342,17 @@ def _run_transcription(meeting_id: str, job_id: str):
             if metadata.num_speakers:
                 diarize_kwargs["num_speakers"] = metadata.num_speakers
             diarize_segments = diarize_model(audio, **diarize_kwargs)
+            # Capture raw PyAnnote turns (with overlaps) before assign_word_speakers
+            # collapses them into per-speaker non-overlapping transcript segments.
+            # Required by interaction analysis (BR-3.1).
+            try:
+                diarize_turns = [
+                    (float(row["start"]), float(row["end"]), str(row["speaker"]))
+                    for _, row in diarize_segments.iterrows()
+                ]
+            except Exception:
+                logger.exception("Failed to capture raw diarization turns; interaction analysis will be unavailable")
+                diarize_turns = None
             result = assign_word_speakers(diarize_segments, result)
 
         job_queue.update_job(job_id, progress=90, stage="saving")
@@ -322,7 +379,9 @@ def _run_transcription(meeting_id: str, job_id: str):
         audio_analysis: AudioAnalysis | None = None
         if metadata.audio_analysis_enabled:
             try:
-                audio_analysis = _run_audio_analysis(job_id, audio, segments, detected_language)
+                audio_analysis = _run_audio_analysis(
+                    job_id, audio, segments, detected_language, diarize_turns=diarize_turns
+                )
             except Exception as e:
                 logger.exception("Audio analysis raised unexpectedly; continuing with meeting")
                 audio_analysis = AudioAnalysis(status=AudioAnalysisStatus.FAILED, reason=str(e))
