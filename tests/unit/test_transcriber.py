@@ -502,16 +502,25 @@ class TestRunAudioAnalysis:
             {"id": "seg_0000", "start": 0.0, "end": 1.0, "speaker": "SPEAKER_00", "text": "hi"},
         ]
 
+    def _diarize_turns(self):
+        return [(0.0, 1.0, "SPEAKER_00")]
+
     def test_unsupported_language_skips_emotion_but_runs_prosody(self):
         with patch("backend.services.prosody_analyzer.analyze_segments", return_value=([], [])) as mock_prosody:
             with patch("backend.services.transcriber.job_queue.update_job"):
                 result = _run_audio_analysis(
-                    job_id="j1", audio=MagicMock(), segments=self._segments(), detected_language="fr"
+                    job_id="j1",
+                    audio=MagicMock(),
+                    segments=self._segments(),
+                    detected_language="fr",
+                    diarize_turns=self._diarize_turns(),
                 )
         # Emotions skipped (English-only), prosody ran (language-agnostic, BR-2.1)
         assert result.emotion_status == AudioAnalysisStatus.UNAVAILABLE
         assert result.emotion_reason == "language_not_supported:fr"
         assert result.prosody_status == AudioAnalysisStatus.COMPLETED
+        # Interaction is also language-agnostic
+        assert result.interaction_status == AudioAnalysisStatus.COMPLETED
         # Pipeline status rolls up — completes when at least one stage produces output
         assert result.status == AudioAnalysisStatus.COMPLETED
         mock_prosody.assert_called_once()
@@ -525,10 +534,12 @@ class TestRunAudioAnalysis:
                         audio=MagicMock(),
                         segments=self._segments(),
                         detected_language="en",
+                        diarize_turns=self._diarize_turns(),
                     )
         assert result.status == AudioAnalysisStatus.COMPLETED
         assert result.emotion_status == AudioAnalysisStatus.COMPLETED
         assert result.prosody_status == AudioAnalysisStatus.COMPLETED
+        assert result.interaction_status == AudioAnalysisStatus.COMPLETED
         mock_emotion.assert_called_once()
         mock_prosody.assert_called_once()
 
@@ -544,6 +555,7 @@ class TestRunAudioAnalysis:
                         audio=MagicMock(),
                         segments=self._segments(),
                         detected_language="en",
+                        diarize_turns=self._diarize_turns(),
                     )
         # Emotion failed but prosody completed → overall COMPLETED
         assert result.emotion_status == AudioAnalysisStatus.FAILED
@@ -563,13 +575,14 @@ class TestRunAudioAnalysis:
                         audio=MagicMock(),
                         segments=self._segments(),
                         detected_language="en",
+                        diarize_turns=self._diarize_turns(),
                     )
         assert result.prosody_status == AudioAnalysisStatus.FAILED
         assert "praat crashed" in result.prosody_reason
         assert result.emotion_status == AudioAnalysisStatus.COMPLETED
         assert result.status == AudioAnalysisStatus.COMPLETED
 
-    def test_both_stages_fail_rolls_up_to_failed(self):
+    def test_all_stages_fail_rolls_up_to_failed(self):
         with patch(
             "backend.services.emotion_analyzer.analyze_segments",
             side_effect=RuntimeError("emotion boom"),
@@ -578,16 +591,22 @@ class TestRunAudioAnalysis:
                 "backend.services.prosody_analyzer.analyze_segments",
                 side_effect=RuntimeError("prosody boom"),
             ):
-                with patch("backend.services.transcriber.job_queue.update_job"):
-                    result = _run_audio_analysis(
-                        job_id="j1",
-                        audio=MagicMock(),
-                        segments=self._segments(),
-                        detected_language="en",
-                    )
+                with patch(
+                    "backend.services.interaction_analyzer.analyze",
+                    side_effect=RuntimeError("interaction boom"),
+                ):
+                    with patch("backend.services.transcriber.job_queue.update_job"):
+                        result = _run_audio_analysis(
+                            job_id="j1",
+                            audio=MagicMock(),
+                            segments=self._segments(),
+                            detected_language="en",
+                            diarize_turns=self._diarize_turns(),
+                        )
         assert result.status == AudioAnalysisStatus.FAILED
         assert result.emotion_status == AudioAnalysisStatus.FAILED
         assert result.prosody_status == AudioAnalysisStatus.FAILED
+        assert result.interaction_status == AudioAnalysisStatus.FAILED
 
     def test_prosody_unavailable_markers_propagated(self):
         from backend.schemas import ProsodyUnavailable
@@ -603,6 +622,77 @@ class TestRunAudioAnalysis:
                         audio=MagicMock(),
                         segments=self._segments(),
                         detected_language="en",
+                        diarize_turns=self._diarize_turns(),
                     )
         assert len(result.prosody_unavailable) == 1
         assert result.prosody_unavailable[0].reason == "non_speech"
+
+    def test_no_diarize_turns_marks_interaction_unavailable(self):
+        with patch("backend.services.emotion_analyzer.analyze_segments", return_value=[]):
+            with patch("backend.services.prosody_analyzer.analyze_segments", return_value=([], [])):
+                with patch("backend.services.transcriber.job_queue.update_job"):
+                    result = _run_audio_analysis(
+                        job_id="j1",
+                        audio=MagicMock(),
+                        segments=self._segments(),
+                        detected_language="en",
+                        diarize_turns=None,
+                    )
+        assert result.interaction_status == AudioAnalysisStatus.UNAVAILABLE
+        assert result.interaction_reason == "diarization_unavailable"
+        # Emotion + prosody still produced output → overall COMPLETED
+        assert result.status == AudioAnalysisStatus.COMPLETED
+
+    def test_interaction_failure_does_not_block_other_stages(self):
+        with patch("backend.services.emotion_analyzer.analyze_segments", return_value=[]):
+            with patch("backend.services.prosody_analyzer.analyze_segments", return_value=([], [])):
+                with patch(
+                    "backend.services.interaction_analyzer.analyze",
+                    side_effect=RuntimeError("interaction boom"),
+                ):
+                    with patch("backend.services.transcriber.job_queue.update_job"):
+                        result = _run_audio_analysis(
+                            job_id="j1",
+                            audio=MagicMock(),
+                            segments=self._segments(),
+                            detected_language="en",
+                            diarize_turns=self._diarize_turns(),
+                        )
+        assert result.interaction_status == AudioAnalysisStatus.FAILED
+        assert "interaction boom" in result.interaction_reason
+        assert result.status == AudioAnalysisStatus.COMPLETED
+
+    def test_interaction_results_propagated(self):
+        from backend.schemas import InteractionEvent, InteractionEventType, SegmentInteraction
+        from backend.services.interaction_analyzer import InteractionAnalysisResult
+
+        analyzer_result = InteractionAnalysisResult(
+            events=[
+                InteractionEvent(
+                    event_type=InteractionEventType.INTERRUPTION,
+                    timestamp=2.0,
+                    speaker_a="SPEAKER_00",
+                    speaker_b="SPEAKER_01",
+                    duration=0.5,
+                    context="hi",
+                )
+            ],
+            segment_interactions=[SegmentInteraction(segment_id="seg_0000", followed_by_interruption=True)],
+            dominant_speaker_limitation=True,
+        )
+        with patch("backend.services.emotion_analyzer.analyze_segments", return_value=[]):
+            with patch("backend.services.prosody_analyzer.analyze_segments", return_value=([], [])):
+                with patch("backend.services.interaction_analyzer.analyze", return_value=analyzer_result):
+                    with patch("backend.services.transcriber.job_queue.update_job"):
+                        result = _run_audio_analysis(
+                            job_id="j1",
+                            audio=MagicMock(),
+                            segments=self._segments(),
+                            detected_language="en",
+                            diarize_turns=self._diarize_turns(),
+                        )
+        assert len(result.interactions) == 1
+        assert result.interactions[0].event_type == InteractionEventType.INTERRUPTION
+        assert len(result.segment_interactions) == 1
+        assert result.segment_interactions[0].followed_by_interruption is True
+        assert result.dominant_speaker_limitation is True

@@ -10,6 +10,8 @@ from backend.schemas import (
     AudioAnalysisStatus,
     EmotionAnnotation,
     EmotionCategory,
+    InteractionEvent,
+    InteractionEventType,
     JobInfo,
     JobStage,
     JobStatus,
@@ -21,6 +23,7 @@ from backend.schemas import (
     MeetingUpdate,
     ProsodyAnnotation,
     ProsodyUnavailable,
+    SegmentInteraction,
     SegmentSpeakerUpdate,
     Transcript,
     TranscriptSegment,
@@ -383,3 +386,76 @@ class TestAudioAnalysisProsodyFields:
         )
         assert a.emotion_status == AudioAnalysisStatus.UNAVAILABLE
         assert a.prosody_status == AudioAnalysisStatus.COMPLETED
+
+
+class TestInteractionSchemas:
+    def test_event_type_values(self):
+        assert InteractionEventType.INTERRUPTION == "interruption"
+        assert InteractionEventType.OVERLAP == "overlap"
+        assert InteractionEventType.LONG_PAUSE == "long_pause"
+        assert InteractionEventType.HESITATION == "hesitation"
+
+    def test_interaction_event_creation(self):
+        e = InteractionEvent(
+            event_type=InteractionEventType.INTERRUPTION,
+            timestamp=12.5,
+            speaker_a="SPEAKER_00",
+            speaker_b="SPEAKER_01",
+            duration=0.6,
+            context="and the budget needs to",
+        )
+        assert e.event_type == InteractionEventType.INTERRUPTION
+        assert e.timestamp == 12.5
+        assert e.duration == 0.6
+        assert e.context == "and the budget needs to"
+
+    def test_interaction_event_default_context(self):
+        e = InteractionEvent(
+            event_type=InteractionEventType.HESITATION,
+            timestamp=8.0,
+            speaker_a="A",
+            speaker_b="B",
+            duration=1.2,
+        )
+        assert e.context == ""
+
+    def test_segment_interaction_defaults(self):
+        s = SegmentInteraction(segment_id="seg-1")
+        assert s.preceded_by_interruption is False
+        assert s.followed_by_interruption is False
+        assert s.hesitation_before == 0.0
+
+    def test_audio_analysis_interaction_defaults(self):
+        a = AudioAnalysis(status=AudioAnalysisStatus.UNAVAILABLE)
+        assert a.interactions == []
+        assert a.segment_interactions == []
+        assert a.interaction_status is None
+        assert a.interaction_reason is None
+        assert a.dominant_speaker_limitation is False
+
+    def test_audio_analysis_with_interactions(self):
+        a = AudioAnalysis(
+            status=AudioAnalysisStatus.COMPLETED,
+            interaction_status=AudioAnalysisStatus.COMPLETED,
+            interactions=[
+                InteractionEvent(
+                    event_type=InteractionEventType.INTERRUPTION,
+                    timestamp=4.0,
+                    speaker_a="A",
+                    speaker_b="B",
+                    duration=0.4,
+                    context="say something",
+                )
+            ],
+            segment_interactions=[
+                SegmentInteraction(segment_id="seg-1", followed_by_interruption=True),
+                SegmentInteraction(segment_id="seg-2", preceded_by_interruption=True, hesitation_before=0.0),
+            ],
+            dominant_speaker_limitation=True,
+        )
+        assert len(a.interactions) == 1
+        assert a.dominant_speaker_limitation is True
+        assert a.segment_interactions[1].preceded_by_interruption is True
+
+    def test_job_stage_interaction_analysis(self):
+        assert JobStage.INTERACTION_ANALYSIS == "interaction_analysis"
