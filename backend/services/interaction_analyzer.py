@@ -84,41 +84,36 @@ def _is_backchannel_text(text: str) -> bool:
     return False
 
 
-def _context_for(timestamp: float, segments: list[_Segment]) -> tuple[str, str | None]:
-    """Return (context text, segment_id) of the transcript segment covering `timestamp`.
+def _segment_at(
+    timestamp: float,
+    segments: list[_Segment],
+    speaker: str | None = None,
+) -> _Segment | None:
+    """Locate the transcript segment containing `timestamp`.
 
-    Falls back to the nearest segment by edge distance when no segment strictly
-    contains the timestamp (gaps between WhisperX segments are common).
+    When `speaker` is given, only segments matching that speaker are considered —
+    important for overlapping turns where multiple transcript segments cover the
+    same timestamp. Falls back to the nearest segment by edge distance when no
+    segment strictly contains the timestamp (gaps between WhisperX segments are
+    common).
     """
     if not segments:
-        return "", None
-    for seg in segments:
-        if seg.start <= timestamp <= seg.end:
-            return seg.text[:CONTEXT_MAX_CHARS], seg.id
-    nearest = min(
-        segments,
-        key=lambda s: min(abs(s.start - timestamp), abs(s.end - timestamp)),
-    )
-    return nearest.text[:CONTEXT_MAX_CHARS], nearest.id
-
-
-def _text_at(timestamp: float, segments: list[_Segment]) -> str:
-    text, _ = _context_for(timestamp, segments)
-    return text
-
-
-def _segment_at(timestamp: float, segments: list[_Segment]) -> _Segment | None:
-    """Locate the transcript segment containing `timestamp`, falling back to the
-    nearest segment if no segment strictly contains it."""
-    if not segments:
         return None
-    for seg in segments:
+    candidates = [s for s in segments if speaker is None or s.speaker == speaker]
+    if not candidates:
+        return None
+    for seg in candidates:
         if seg.start <= timestamp <= seg.end:
             return seg
     return min(
-        segments,
+        candidates,
         key=lambda s: min(abs(s.start - timestamp), abs(s.end - timestamp)),
     )
+
+
+def _text_at(timestamp: float, segments: list[_Segment], speaker: str | None = None) -> str:
+    seg = _segment_at(timestamp, segments, speaker=speaker)
+    return seg.text[:CONTEXT_MAX_CHARS] if seg else ""
 
 
 def _detect_overlaps(
@@ -146,7 +141,7 @@ def _detect_overlaps(
             duration = max(0.0, overlap_end - overlap_start)
 
             duration_b = end_b - start_b
-            text_b = _text_at((start_b + end_b) / 2, transcript_segments)
+            text_b = _text_at((start_b + end_b) / 2, transcript_segments, speaker=spk_b)
             is_backchannel = duration_b <= BACKCHANNEL_MAX_DURATION and _is_backchannel_text(text_b)
 
             event_type = InteractionEventType.OVERLAP if is_backchannel else InteractionEventType.INTERRUPTION
@@ -191,7 +186,7 @@ def _detect_pause_events(
                 speaker_a=prev_spk,
                 speaker_b=curr_spk,
                 duration=round(gap, 2),
-                context=_text_at(curr_start, transcript_segments),
+                context=_text_at(curr_start, transcript_segments, speaker=curr_spk),
             )
         )
 
@@ -224,16 +219,14 @@ def _build_segment_interactions(
     for event in interruption_events:
         if event.event_type != InteractionEventType.INTERRUPTION:
             continue
-        # Interrupter (speaker_b) starts during the interrupted speaker's (a) turn
-        interrupter_seg = _segment_at(event.timestamp, transcript_segments)
-        interrupted_seg = _segment_at(event.timestamp - 1e-3, transcript_segments)
+        # Interrupter (speaker_b) starts during the interrupted speaker's (a) turn.
+        # Speaker-aware lookup matters because both transcript segments cover the
+        # event timestamp during the overlap window.
+        interrupter_seg = _segment_at(event.timestamp, transcript_segments, speaker=event.speaker_b)
+        interrupted_seg = _segment_at(event.timestamp, transcript_segments, speaker=event.speaker_a)
         if interrupter_seg is not None and interrupter_seg.id in annotations:
             annotations[interrupter_seg.id].preceded_by_interruption = True
-        if (
-            interrupted_seg is not None
-            and interrupted_seg.id in annotations
-            and (interrupter_seg is None or interrupted_seg.id != interrupter_seg.id)
-        ):
+        if interrupted_seg is not None and interrupted_seg.id in annotations:
             annotations[interrupted_seg.id].followed_by_interruption = True
 
     return [annotations[seg.id] for seg in transcript_segments]
