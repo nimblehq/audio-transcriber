@@ -31,6 +31,8 @@ data/meetings/
 
 # Virtual environment
 .venv/
+.lock
+uv.lock
 
 # Node
 node_modules/

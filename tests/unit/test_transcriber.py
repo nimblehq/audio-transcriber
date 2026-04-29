@@ -502,54 +502,107 @@ class TestRunAudioAnalysis:
             {"id": "seg_0000", "start": 0.0, "end": 1.0, "speaker": "SPEAKER_00", "text": "hi"},
         ]
 
-    def test_unsupported_language_returns_unavailable_without_running_model(self):
-        result = _run_audio_analysis(job_id="j1", audio=None, segments=self._segments(), detected_language="fr")
-        assert result.status == AudioAnalysisStatus.UNAVAILABLE
-        assert result.reason == "language_not_supported:fr"
-        assert result.emotions == []
-
-    def test_unknown_language_returns_unavailable(self):
-        result = _run_audio_analysis(job_id="j1", audio=None, segments=self._segments(), detected_language="unknown")
-        assert result.status == AudioAnalysisStatus.UNAVAILABLE
-
-    def test_english_runs_analyzer_and_returns_completed(self):
-        with patch("backend.services.emotion_analyzer.analyze_segments", return_value=[]) as mock_run:
+    def test_unsupported_language_skips_emotion_but_runs_prosody(self):
+        with patch("backend.services.prosody_analyzer.analyze_segments", return_value=([], [])) as mock_prosody:
             with patch("backend.services.transcriber.job_queue.update_job"):
                 result = _run_audio_analysis(
-                    job_id="j1",
-                    audio=MagicMock(),
-                    segments=self._segments(),
-                    detected_language="en",
+                    job_id="j1", audio=MagicMock(), segments=self._segments(), detected_language="fr"
                 )
+        # Emotions skipped (English-only), prosody ran (language-agnostic, BR-2.1)
+        assert result.emotion_status == AudioAnalysisStatus.UNAVAILABLE
+        assert result.emotion_reason == "language_not_supported:fr"
+        assert result.prosody_status == AudioAnalysisStatus.COMPLETED
+        # Pipeline status rolls up — completes when at least one stage produces output
         assert result.status == AudioAnalysisStatus.COMPLETED
-        assert result.emotions == []
-        mock_run.assert_called_once()
+        mock_prosody.assert_called_once()
 
-    def test_analyzer_failure_returns_failed_status_not_raises(self):
+    def test_english_runs_both_stages_and_returns_completed(self):
+        with patch("backend.services.emotion_analyzer.analyze_segments", return_value=[]) as mock_emotion:
+            with patch("backend.services.prosody_analyzer.analyze_segments", return_value=([], [])) as mock_prosody:
+                with patch("backend.services.transcriber.job_queue.update_job"):
+                    result = _run_audio_analysis(
+                        job_id="j1",
+                        audio=MagicMock(),
+                        segments=self._segments(),
+                        detected_language="en",
+                    )
+        assert result.status == AudioAnalysisStatus.COMPLETED
+        assert result.emotion_status == AudioAnalysisStatus.COMPLETED
+        assert result.prosody_status == AudioAnalysisStatus.COMPLETED
+        mock_emotion.assert_called_once()
+        mock_prosody.assert_called_once()
+
+    def test_emotion_failure_does_not_block_prosody(self):
         with patch(
             "backend.services.emotion_analyzer.analyze_segments",
             side_effect=RuntimeError("model crashed"),
         ):
-            with patch("backend.services.transcriber.job_queue.update_job"):
-                result = _run_audio_analysis(
-                    job_id="j1",
-                    audio=MagicMock(),
-                    segments=self._segments(),
-                    detected_language="en",
-                )
-        assert result.status == AudioAnalysisStatus.FAILED
-        assert "model crashed" in result.reason
+            with patch("backend.services.prosody_analyzer.analyze_segments", return_value=([], [])):
+                with patch("backend.services.transcriber.job_queue.update_job"):
+                    result = _run_audio_analysis(
+                        job_id="j1",
+                        audio=MagicMock(),
+                        segments=self._segments(),
+                        detected_language="en",
+                    )
+        # Emotion failed but prosody completed → overall COMPLETED
+        assert result.emotion_status == AudioAnalysisStatus.FAILED
+        assert "model crashed" in result.emotion_reason
+        assert result.prosody_status == AudioAnalysisStatus.COMPLETED
+        assert result.status == AudioAnalysisStatus.COMPLETED
 
-    def test_job_queue_failure_does_not_raise(self):
-        # Defensive: even if update_job blows up, the function must return FAILED, not raise.
+    def test_prosody_failure_does_not_block_emotion(self):
+        with patch("backend.services.emotion_analyzer.analyze_segments", return_value=[]):
+            with patch(
+                "backend.services.prosody_analyzer.analyze_segments",
+                side_effect=RuntimeError("praat crashed"),
+            ):
+                with patch("backend.services.transcriber.job_queue.update_job"):
+                    result = _run_audio_analysis(
+                        job_id="j1",
+                        audio=MagicMock(),
+                        segments=self._segments(),
+                        detected_language="en",
+                    )
+        assert result.prosody_status == AudioAnalysisStatus.FAILED
+        assert "praat crashed" in result.prosody_reason
+        assert result.emotion_status == AudioAnalysisStatus.COMPLETED
+        assert result.status == AudioAnalysisStatus.COMPLETED
+
+    def test_both_stages_fail_rolls_up_to_failed(self):
         with patch(
-            "backend.services.transcriber.job_queue.update_job",
-            side_effect=RuntimeError("queue down"),
+            "backend.services.emotion_analyzer.analyze_segments",
+            side_effect=RuntimeError("emotion boom"),
         ):
-            result = _run_audio_analysis(
-                job_id="j1",
-                audio=MagicMock(),
-                segments=self._segments(),
-                detected_language="en",
-            )
+            with patch(
+                "backend.services.prosody_analyzer.analyze_segments",
+                side_effect=RuntimeError("prosody boom"),
+            ):
+                with patch("backend.services.transcriber.job_queue.update_job"):
+                    result = _run_audio_analysis(
+                        job_id="j1",
+                        audio=MagicMock(),
+                        segments=self._segments(),
+                        detected_language="en",
+                    )
         assert result.status == AudioAnalysisStatus.FAILED
+        assert result.emotion_status == AudioAnalysisStatus.FAILED
+        assert result.prosody_status == AudioAnalysisStatus.FAILED
+
+    def test_prosody_unavailable_markers_propagated(self):
+        from backend.schemas import ProsodyUnavailable
+
+        with patch("backend.services.emotion_analyzer.analyze_segments", return_value=[]):
+            with patch(
+                "backend.services.prosody_analyzer.analyze_segments",
+                return_value=([], [ProsodyUnavailable(segment_id="seg_0000", reason="non_speech")]),
+            ):
+                with patch("backend.services.transcriber.job_queue.update_job"):
+                    result = _run_audio_analysis(
+                        job_id="j1",
+                        audio=MagicMock(),
+                        segments=self._segments(),
+                        detected_language="en",
+                    )
+        assert len(result.prosody_unavailable) == 1
+        assert result.prosody_unavailable[0].reason == "non_speech"
