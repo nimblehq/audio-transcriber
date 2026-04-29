@@ -34,6 +34,7 @@ class JobStage(str, Enum):
     DIARIZING = "diarizing"
     EMOTION_ANALYSIS = "emotion_analysis"
     PROSODY_EXTRACTION = "prosody_extraction"
+    INTERACTION_ANALYSIS = "interaction_analysis"
 
 
 class EmotionCategory(str, Enum):
@@ -80,6 +81,29 @@ class ProsodyUnavailable(BaseModel):
     reason: str
 
 
+class InteractionEventType(str, Enum):
+    INTERRUPTION = "interruption"
+    OVERLAP = "overlap"
+    LONG_PAUSE = "long_pause"
+    HESITATION = "hesitation"
+
+
+class InteractionEvent(BaseModel):
+    event_type: InteractionEventType
+    timestamp: float
+    speaker_a: str
+    speaker_b: str
+    duration: float
+    context: str = ""
+
+
+class SegmentInteraction(BaseModel):
+    segment_id: str
+    preceded_by_interruption: bool = False
+    followed_by_interruption: bool = False
+    hesitation_before: float = 0.0
+
+
 class AudioAnalysis(BaseModel):
     status: AudioAnalysisStatus
     reason: str | None = None
@@ -90,6 +114,11 @@ class AudioAnalysis(BaseModel):
     prosody_reason: str | None = None
     prosody: list[ProsodyAnnotation] = Field(default_factory=list)
     prosody_unavailable: list[ProsodyUnavailable] = Field(default_factory=list)
+    interaction_status: AudioAnalysisStatus | None = None
+    interaction_reason: str | None = None
+    interactions: list[InteractionEvent] = Field(default_factory=list)
+    segment_interactions: list[SegmentInteraction] = Field(default_factory=list)
+    dominant_speaker_limitation: bool = False
 
 
 class TranscriptSegment(BaseModel):
