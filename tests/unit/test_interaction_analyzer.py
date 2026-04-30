@@ -72,9 +72,16 @@ class TestBackchannelCombinedHeuristic:
         # "Tuesday" at 0.8s — neither lexical nor under the short-duration floor
         assert _is_backchannel(0.8, "Tuesday") is False
 
-    def test_empty_text_is_not_backchannel(self):
-        assert _is_backchannel(0.2, "") is False
-        assert _is_backchannel(0.2, "   ") is False
+    def test_sub_floor_with_no_text_is_backchannel(self):
+        # A sub-0.5s PyAnnote turn that WhisperX didn't transcribe — almost
+        # always a brief vocalization or breath, not a real interruption.
+        assert _is_backchannel(0.2, "") is True
+        assert _is_backchannel(0.4, "   ") is True
+
+    def test_above_short_duration_with_no_text_is_not_backchannel(self):
+        # A 1s+ turn with no transcript shouldn't be auto-classified as
+        # back-channel — could be inaudible substantive speech
+        assert _is_backchannel(1.2, "") is False
 
 
 class TestInterruptionDetection:
@@ -111,6 +118,25 @@ class TestInterruptionDetection:
         assert len(interruptions) == 0
         assert len(overlaps) == 1
         assert overlaps[0].speaker_b == "B"
+
+    def test_brief_blip_with_no_transcript_is_overlap_not_interruption(self):
+        # Reproduces a production case: PyAnnote detected a 0.2s crossover by
+        # speaker B at t=4.0 but WhisperX didn't transcribe it. Speaker B's
+        # nearest transcript segment is 200s away with substantive content.
+        # Strict lookup must not pull that far-away text into the decision.
+        diarize_turns = [(0.0, 10.0, "A"), (4.0, 4.2, "B")]
+        segments = [
+            _seg("a0", 0.0, 10.0, speaker="A", text="and we should ship by friday for the launch"),
+            # B's only transcript segment is far away with substantive content
+            _seg("b0", 200.0, 210.0, speaker="B", text="actually the entire approach needs revisiting"),
+        ]
+        result = analyze(segments, diarize_turns)
+        interruptions = [e for e in result.events if e.event_type == InteractionEventType.INTERRUPTION]
+        overlaps = [e for e in result.events if e.event_type == InteractionEventType.OVERLAP]
+        assert len(interruptions) == 0
+        assert len(overlaps) == 1
+        # Lenient context should still surface something — better than empty
+        assert overlaps[0].context != ""
 
     def test_sub_second_unknown_word_is_overlap_not_interruption(self):
         # Reproduces a production case: a 0.13s "Nice." was being classified as
