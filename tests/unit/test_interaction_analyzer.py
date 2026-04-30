@@ -3,9 +3,11 @@ from __future__ import annotations
 from backend.schemas import InteractionEventType, TranscriptSegment
 from backend.services.interaction_analyzer import (
     BACKCHANNEL_MAX_DURATION,
+    BACKCHANNEL_SHORT_DURATION,
     DOMINANT_SPEAKER_THRESHOLD,
     HESITATION_MIN_SECONDS,
     LONG_PAUSE_MIN_SECONDS,
+    _is_backchannel,
     _is_backchannel_text,
     analyze,
 )
@@ -38,6 +40,41 @@ class TestBackchannelTextHeuristic:
     def test_empty_text_is_not_backchannel(self):
         assert _is_backchannel_text("") is False
         assert _is_backchannel_text("   ") is False
+
+    def test_expanded_token_set_covers_common_acknowledgements(self):
+        # Production logs surfaced these escaping the original token list
+        for token in ["Nice.", "cool", "Great!", "perfect", "Awesome.", "makes sense", "fair enough", "agreed"]:
+            assert _is_backchannel_text(token) is True, f"{token!r} should be a back-channel"
+
+
+class TestBackchannelCombinedHeuristic:
+    """The combined check (duration cap + lexicon, OR sub-second + ≤2 words)."""
+
+    def test_short_lexical_match_is_backchannel(self):
+        assert _is_backchannel(0.4, "yeah") is True
+        assert _is_backchannel(1.2, "got it") is True
+
+    def test_long_lexical_match_is_not_backchannel(self):
+        # Above duration cap, lexical match alone isn't enough
+        assert _is_backchannel(BACKCHANNEL_MAX_DURATION + 0.1, "yeah") is False
+
+    def test_sub_second_unknown_word_is_backchannel_via_duration_floor(self):
+        # "Nice." escapes the original lexicon but is still clearly a back-channel
+        # at 0.13s. The duration floor catches it.
+        assert _is_backchannel(0.13, "Nice.") is True
+        assert _is_backchannel(BACKCHANNEL_SHORT_DURATION, "huh?") is True
+
+    def test_sub_second_long_phrase_is_not_backchannel(self):
+        # Even at sub-second, more than 2 words shouldn't trigger the floor
+        assert _is_backchannel(0.4, "the budget plan now") is False
+
+    def test_above_short_duration_unknown_word_is_not_backchannel(self):
+        # "Tuesday" at 0.8s — neither lexical nor under the short-duration floor
+        assert _is_backchannel(0.8, "Tuesday") is False
+
+    def test_empty_text_is_not_backchannel(self):
+        assert _is_backchannel(0.2, "") is False
+        assert _is_backchannel(0.2, "   ") is False
 
 
 class TestInterruptionDetection:
@@ -74,6 +111,21 @@ class TestInterruptionDetection:
         assert len(interruptions) == 0
         assert len(overlaps) == 1
         assert overlaps[0].speaker_b == "B"
+
+    def test_sub_second_unknown_word_is_overlap_not_interruption(self):
+        # Reproduces a production case: a 0.13s "Nice." was being classified as
+        # interruption because the token wasn't in the lexicon. The duration
+        # floor now catches it.
+        diarize_turns = [(0.0, 10.0, "A"), (4.0, 4.13, "B")]
+        segments = [
+            _seg("a0", 0.0, 10.0, speaker="A", text="and the timeline says we should ship by friday"),
+            _seg("b0", 4.0, 4.13, speaker="B", text="Nice."),
+        ]
+        result = analyze(segments, diarize_turns)
+        interruptions = [e for e in result.events if e.event_type == InteractionEventType.INTERRUPTION]
+        overlaps = [e for e in result.events if e.event_type == InteractionEventType.OVERLAP]
+        assert len(interruptions) == 0
+        assert len(overlaps) == 1
 
     def test_long_backchannel_phrase_is_still_interruption(self):
         # If the back-channel turn exceeds duration cap, treat as interruption

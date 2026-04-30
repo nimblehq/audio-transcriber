@@ -13,11 +13,18 @@ from backend.schemas import (
 
 logger = logging.getLogger(__name__)
 
-# A segment is a back-channel when it's short AND its text is dominated by
-# acknowledgement tokens. Both conditions are required to avoid false positives
-# on short content words ("Tuesday") and on long agreement statements.
+# A turn is a back-channel when it's short AND its text is dominated by
+# acknowledgement tokens. Both conditions together avoid false positives on
+# short content words ("Tuesday") and on long agreement statements.
+#
+# A duration-only floor catches cases where the lexicon doesn't (production
+# logs surfaced sub-second "Nice." / "Cool." utterances escaping the lexical
+# filter): any utterance ≤ 0.5s with ≤ 2 words is treated as a back-channel
+# regardless of vocabulary.
 BACKCHANNEL_MAX_DURATION = 1.5
 BACKCHANNEL_MAX_WORDS = 3
+BACKCHANNEL_SHORT_DURATION = 0.5
+BACKCHANNEL_SHORT_MAX_WORDS = 2
 BACKCHANNEL_TOKENS = frozenset(
     {
         "uh-huh",
@@ -28,6 +35,9 @@ BACKCHANNEL_TOKENS = frozenset(
         "mmhmm",
         "mhm",
         "mm",
+        "hmm",
+        "oh",
+        "ah",
         "yeah",
         "yep",
         "yup",
@@ -41,6 +51,16 @@ BACKCHANNEL_TOKENS = frozenset(
         "got it",
         "exactly",
         "true",
+        "nice",
+        "cool",
+        "great",
+        "perfect",
+        "awesome",
+        "totally",
+        "indeed",
+        "agreed",
+        "makes sense",
+        "fair enough",
     }
 )
 
@@ -82,6 +102,17 @@ def _is_backchannel_text(text: str) -> bool:
     if len(words) <= BACKCHANNEL_MAX_WORDS and any(w in BACKCHANNEL_TOKENS for w in words):
         return True
     return False
+
+
+def _is_backchannel(duration: float, text: str) -> bool:
+    """Combined back-channel heuristic: duration cap + lexical match, OR a
+    sub-second utterance with at most two words (catches "Nice." / "Cool."
+    that escape the lexicon)."""
+    normalized = _normalize_text(text)
+    word_count = len(normalized.split())
+    if duration <= BACKCHANNEL_SHORT_DURATION and 0 < word_count <= BACKCHANNEL_SHORT_MAX_WORDS:
+        return True
+    return duration <= BACKCHANNEL_MAX_DURATION and _is_backchannel_text(text)
 
 
 def _segment_at(
@@ -142,7 +173,7 @@ def _detect_overlaps(
 
             duration_b = end_b - start_b
             text_b = _text_at((start_b + end_b) / 2, transcript_segments, speaker=spk_b)
-            is_backchannel = duration_b <= BACKCHANNEL_MAX_DURATION and _is_backchannel_text(text_b)
+            is_backchannel = _is_backchannel(duration_b, text_b)
 
             event_type = InteractionEventType.OVERLAP if is_backchannel else InteractionEventType.INTERRUPTION
             events.append(
