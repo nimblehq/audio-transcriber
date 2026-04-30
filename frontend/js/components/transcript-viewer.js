@@ -26,6 +26,7 @@ async function loadMeetingView(container, meetingId) {
                     <h1 id="meeting-title">${escapeHtml(meta.title)}</h1>
                     <div class="header-actions">
                         <span class="badge badge-${meta.type}">${meta.type}</span>
+                        ${!isProcessing ? `<button class="btn btn-text" onclick="handleRerunTranscription('${meetingId}')">Re-run</button>` : ''}
                         <button class="btn btn-text btn-delete" onclick="handleDeleteMeeting('${meetingId}')">Delete</button>
                     </div>
                 </div>
@@ -523,6 +524,11 @@ async function retryTranscription(meetingId) {
     } catch (err) {
         showToast(err.message, 'error');
     }
+}
+
+async function handleRerunTranscription(meetingId) {
+    if (!confirm('Re-run transcription? The existing transcript and analysis will be overwritten.')) return;
+    await retryTranscription(meetingId);
 }
 
 async function handleCancelTranscription(meetingId) {
