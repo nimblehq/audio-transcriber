@@ -324,3 +324,32 @@ class TestEmptyInputs:
         assert len(result.segment_interactions) == 1
         assert result.segment_interactions[0].segment_id == "a0"
         assert result.segment_interactions[0].hesitation_before == 0.0
+
+
+class TestPerformanceAtScale:
+    """Lock in the indexed-lookup + sweep-line optimization. The original
+    O(M² × N) implementation hung the interaction stage at 97% on hour-long
+    meetings (~750 segments, ~1000 turns). With the index + sweep this should
+    run in well under a second."""
+
+    def test_thousand_turns_completes_quickly(self):
+        import time
+
+        # 1000 non-overlapping turns alternating between two speakers,
+        # with 1000 matching transcript segments
+        turns = []
+        segments = []
+        for i in range(1000):
+            spk = "A" if i % 2 == 0 else "B"
+            start = i * 1.0
+            end = start + 0.9
+            turns.append((start, end, spk))
+            segments.append(_seg(f"s{i:04d}", start, end, speaker=spk, text="some words here"))
+
+        t0 = time.monotonic()
+        result = analyze(segments, turns)
+        elapsed = time.monotonic() - t0
+
+        assert len(result.segment_interactions) == 1000
+        # Generous bound — the original implementation took minutes here
+        assert elapsed < 2.0, f"analyze() took {elapsed:.2f}s on 1000 non-overlapping turns"
