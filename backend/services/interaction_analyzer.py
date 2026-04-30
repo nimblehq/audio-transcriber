@@ -105,13 +105,22 @@ def _is_backchannel_text(text: str) -> bool:
 
 
 def _is_backchannel(duration: float, text: str) -> bool:
-    """Combined back-channel heuristic: duration cap + lexical match, OR a
-    sub-second utterance with at most two words (catches "Nice." / "Cool."
-    that escape the lexicon)."""
+    """Combined back-channel heuristic. A turn is a back-channel when:
+
+    - it's sub-floor (≤ 0.5s) AND has no transcript text (PyAnnote split a
+      brief vocalization that WhisperX didn't deem worth transcribing — this
+      is the dominant pattern for false-positive interruptions in real audio), OR
+    - it's sub-floor with at most two words (catches "Nice." / "Cool." that
+      escape the lexicon), OR
+    - it's within the duration cap and lexically matches an acknowledgement.
+    """
     normalized = _normalize_text(text)
     word_count = len(normalized.split())
-    if duration <= BACKCHANNEL_SHORT_DURATION and 0 < word_count <= BACKCHANNEL_SHORT_MAX_WORDS:
-        return True
+    if duration <= BACKCHANNEL_SHORT_DURATION:
+        if word_count == 0:
+            return True
+        if word_count <= BACKCHANNEL_SHORT_MAX_WORDS:
+            return True
     return duration <= BACKCHANNEL_MAX_DURATION and _is_backchannel_text(text)
 
 
@@ -119,14 +128,20 @@ def _segment_at(
     timestamp: float,
     segments: list[_Segment],
     speaker: str | None = None,
+    strict: bool = False,
 ) -> _Segment | None:
     """Locate the transcript segment containing `timestamp`.
 
     When `speaker` is given, only segments matching that speaker are considered —
     important for overlapping turns where multiple transcript segments cover the
-    same timestamp. Falls back to the nearest segment by edge distance when no
-    segment strictly contains the timestamp (gaps between WhisperX segments are
-    common).
+    same timestamp.
+
+    When `strict=False` (default), falls back to the nearest segment by edge
+    distance for context lookups where any nearby text is useful.
+
+    When `strict=True`, returns `None` if no segment strictly contains the
+    timestamp. Used for back-channel decisions, where a far-away segment's text
+    would mis-classify a brief diarization blip that WhisperX didn't transcribe.
     """
     if not segments:
         return None
@@ -136,14 +151,21 @@ def _segment_at(
     for seg in candidates:
         if seg.start <= timestamp <= seg.end:
             return seg
+    if strict:
+        return None
     return min(
         candidates,
         key=lambda s: min(abs(s.start - timestamp), abs(s.end - timestamp)),
     )
 
 
-def _text_at(timestamp: float, segments: list[_Segment], speaker: str | None = None) -> str:
-    seg = _segment_at(timestamp, segments, speaker=speaker)
+def _text_at(
+    timestamp: float,
+    segments: list[_Segment],
+    speaker: str | None = None,
+    strict: bool = False,
+) -> str:
+    seg = _segment_at(timestamp, segments, speaker=speaker, strict=strict)
     return seg.text[:CONTEXT_MAX_CHARS] if seg else ""
 
 
@@ -172,8 +194,14 @@ def _detect_overlaps(
             duration = max(0.0, overlap_end - overlap_start)
 
             duration_b = end_b - start_b
-            text_b = _text_at((start_b + end_b) / 2, transcript_segments, speaker=spk_b)
-            is_backchannel = _is_backchannel(duration_b, text_b)
+            # Strict lookup for the classification decision — a far-away
+            # transcript segment of speaker B would lie about what was said
+            # during this brief turn.
+            text_b_strict = _text_at((start_b + end_b) / 2, transcript_segments, speaker=spk_b, strict=True)
+            is_backchannel = _is_backchannel(duration_b, text_b_strict)
+            # Lenient lookup for the stored context so the UI has something
+            # to show even when the strict lookup returned nothing.
+            text_b = text_b_strict or _text_at((start_b + end_b) / 2, transcript_segments, speaker=spk_b)
 
             event_type = InteractionEventType.OVERLAP if is_backchannel else InteractionEventType.INTERRUPTION
             events.append(
