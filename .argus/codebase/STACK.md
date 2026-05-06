@@ -29,8 +29,8 @@
 ## Package Management
 
 - **pip** with `requirements.txt` (no poetry/pipenv)
-- **npm** — only for dev tooling (`argus-monorepo` devDependency)
 - Python virtualenv at `.venv/` and `lib/`
+- No npm/Node tooling in this project
 
 ## Runtime
 
