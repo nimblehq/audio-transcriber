@@ -1,5 +1,0 @@
-{
-  "devDependencies": {
-    "argus-monorepo": "github:nimblehq/argus#feature/58-spec-drift-detection"
-  }
-}
