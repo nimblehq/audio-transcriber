@@ -39,4 +39,4 @@ No AC (chore). Follows the Delete/Keep/Add checklist in issue #60.
 
 ## Deviations from Plan
 
-_Populated after implementation._
+- **Deleted `package.json` and `package-lock.json` entirely** rather than editing `package.json` to remove the dep and running `npm install` to refresh the lockfile. Rationale: this is a Python project, and `argus-monorepo` was the sole entry. Leaving an empty `{}` `package.json` plus a near-empty lockfile would add dead weight with no purpose. The issue's checklist literal step ("argus from package.json devDependencies, then reinstall to update lockfile") describes the mechanics for projects where other deps exist; the spirit is "remove the dep and its lockfile artifacts," which a clean delete also satisfies.
