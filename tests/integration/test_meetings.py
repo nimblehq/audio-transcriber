@@ -243,6 +243,45 @@ class TestUpdateSegmentSpeaker:
         speakers = detail.json()["metadata"]["speakers"]
         assert "Charlie" in speakers.values()
 
+    async def test_merges_onto_existing_speaker(self, client, populated_meeting):
+        """Renaming to an existing speaker's name reuses that speaker's id."""
+        res = await client.patch(
+            f"/api/meetings/{populated_meeting}/segments/speaker",
+            json={"segment_id": "seg-001", "speaker_name": "Bob"},
+        )
+        assert res.status_code == 200
+
+        detail = (await client.get(f"/api/meetings/{populated_meeting}")).json()
+        assert detail["metadata"]["speakers"] == {"SPEAKER_00": "Alice", "SPEAKER_01": "Bob"}
+        seg = next(s for s in detail["transcript"]["segments"] if s["id"] == "seg-001")
+        assert seg["speaker"] == "SPEAKER_01"
+
+    async def test_merge_match_is_case_and_whitespace_insensitive(self, client, populated_meeting):
+        res = await client.patch(
+            f"/api/meetings/{populated_meeting}/segments/speaker",
+            json={"segment_id": "seg-001", "speaker_name": "  bob  "},
+        )
+        assert res.status_code == 200
+
+        detail = (await client.get(f"/api/meetings/{populated_meeting}")).json()
+        assert detail["metadata"]["speakers"] == {"SPEAKER_00": "Alice", "SPEAKER_01": "Bob"}
+        seg = next(s for s in detail["transcript"]["segments"] if s["id"] == "seg-001")
+        assert seg["speaker"] == "SPEAKER_01"
+
+    async def test_brand_new_name_creates_new_speaker(self, client, populated_meeting):
+        res = await client.patch(
+            f"/api/meetings/{populated_meeting}/segments/speaker",
+            json={"segment_id": "seg-001", "speaker_name": "Charlie"},
+        )
+        assert res.status_code == 200
+
+        detail = (await client.get(f"/api/meetings/{populated_meeting}")).json()
+        speakers = detail["metadata"]["speakers"]
+        assert "Charlie" in speakers.values()
+        assert len(speakers) == 3
+        seg = next(s for s in detail["transcript"]["segments"] if s["id"] == "seg-001")
+        assert speakers[seg["speaker"]] == "Charlie"
+
     async def test_missing_segment(self, client, populated_meeting):
         res = await client.patch(
             f"/api/meetings/{populated_meeting}/segments/speaker",
