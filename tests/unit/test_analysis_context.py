@@ -9,6 +9,7 @@ from backend.schemas import (
     EmotionCategory,
     InteractionEvent,
     InteractionEventType,
+    ProsodyUnavailable,
     SegmentInteraction,
     Transcript,
     TranscriptSegment,
@@ -250,6 +251,27 @@ class TestEnergyTrajectory:
         out = analysis_context.render(aa, transcript=None)
         assert "peaked" in out
         assert "lowest" not in out
+
+
+class TestDataLimitations:
+    def test_excluded_non_speech_segments_disclosed(self):
+        emotions = [_emotion(primary=EmotionCategory.ENGAGED, confidence=0.9)]
+        prosody_unavailable = [
+            ProsodyUnavailable(segment_id="s1", reason="non_speech"),
+            ProsodyUnavailable(segment_id="s2", reason="non_speech"),
+            ProsodyUnavailable(segment_id="s3", reason="too_short"),
+        ]
+        aa = _completed_audio_analysis(emotions=emotions, prosody_unavailable=prosody_unavailable)
+        out = analysis_context.render(aa, transcript=None)
+        assert "### Data Limitations" in out
+        assert "3 segments excluded" in out
+        assert "non_speech" in out
+
+    def test_no_limitations_section_when_prosody_unavailable_empty(self):
+        emotions = [_emotion(primary=EmotionCategory.ENGAGED, confidence=0.9)]
+        aa = _completed_audio_analysis(emotions=emotions)
+        out = analysis_context.render(aa, transcript=None)
+        assert "### Data Limitations" not in out
 
 
 class TestInstructions:

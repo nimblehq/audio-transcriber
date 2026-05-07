@@ -101,6 +101,7 @@ def render(
             audio_analysis.dominant_speaker_limitation,
         ),
         _render_energy_trajectory(audio_analysis.emotions),
+        _render_data_limitations(audio_analysis.prosody_unavailable),
     ]
 
     body = "\n\n".join(s for s in sections if s)
@@ -336,6 +337,22 @@ def _window_label(index: int) -> str:
     start = int(index * ENERGY_WINDOW_SECONDS)
     end = int(start + ENERGY_WINDOW_SECONDS)
     return f"{_format_timestamp(start)}–{_format_timestamp(end)}"
+
+
+def _render_data_limitations(prosody_unavailable: list) -> str:
+    """Disclose non-speech / unanalyzable segments excluded from prosody (BR-4.5)."""
+    if not prosody_unavailable:
+        return ""
+
+    reasons: Counter[str] = Counter(item.reason for item in prosody_unavailable)
+    parts = [f"{count} {reason}" for reason, count in reasons.most_common()]
+    summary = ", ".join(parts)
+    total = len(prosody_unavailable)
+    return (
+        "### Data Limitations\n"
+        f"- {total} segment{_s(total)} excluded from prosodic analysis ({summary}); "
+        "tone signals for those segments are unavailable."
+    )
 
 
 def _instructions() -> str:
