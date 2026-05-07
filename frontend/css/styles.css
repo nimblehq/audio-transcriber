@@ -785,6 +785,10 @@ body {
     transition: r 0.15s;
 }
 
+.trajectory-point-positive { fill: var(--success); }
+.trajectory-point-negative { fill: var(--danger); }
+.trajectory-point-neutral { fill: var(--text-muted); }
+
 .trajectory-point:hover,
 .trajectory-point:focus {
     r: 7;
@@ -821,6 +825,7 @@ body {
 
 .legend-positive { background: var(--success); }
 .legend-negative { background: var(--danger); }
+.legend-neutral { background: var(--text-muted); }
 
 /* Speaker Editor Popover */
 .speaker-popover {

@@ -90,12 +90,18 @@ function renderTrajectoryChart(trajectory) {
     const baselineY = padY + innerH / 2;
     const linePath = points.map((p, i) => `${i === 0 ? 'M' : 'L'} ${xFor(i).toFixed(1)} ${yFor(p.score).toFixed(1)}`).join(' ');
 
+    const polarityClass = (score) => {
+        if (score > 0.05) return 'trajectory-point-positive';
+        if (score < -0.05) return 'trajectory-point-negative';
+        return 'trajectory-point-neutral';
+    };
+
     const dots = points.map((p, i) => {
         const cx = xFor(i).toFixed(1);
         const cy = yFor(p.score).toFixed(1);
         const seekTo = p.start;
         const tooltip = `${formatWindow(p.start, p.end)} — energy ${p.score >= 0 ? '+' : ''}${p.score.toFixed(2)} (${p.count} segments)`;
-        return `<circle class="trajectory-point" cx="${cx}" cy="${cy}" r="5" data-seek="${seekTo}" tabindex="0" role="button" aria-label="${escapeHtml(tooltip)}"><title>${escapeHtml(tooltip)}</title></circle>`;
+        return `<circle class="trajectory-point ${polarityClass(p.score)}" cx="${cx}" cy="${cy}" r="5" data-seek="${seekTo}" tabindex="0" role="button" aria-label="${escapeHtml(tooltip)}"><title>${escapeHtml(tooltip)}</title></circle>`;
     }).join('');
 
     const labels = points.map((p, i) => {
@@ -113,6 +119,7 @@ function renderTrajectoryChart(trajectory) {
             </svg>
             <div class="trajectory-legend">
                 <span class="trajectory-legend-item"><span class="legend-swatch legend-positive"></span>Positive: engaged, confident</span>
+                <span class="trajectory-legend-item"><span class="legend-swatch legend-neutral"></span>Neutral</span>
                 <span class="trajectory-legend-item"><span class="legend-swatch legend-negative"></span>Negative: disengaged, frustrated</span>
                 <span class="trajectory-legend-item overview-muted">Click a point to seek</span>
             </div>
