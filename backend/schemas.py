@@ -172,6 +172,7 @@ class MeetingSummary(BaseModel):
 class MeetingDetail(BaseModel):
     metadata: MeetingMetadata
     transcript: Transcript | None = None
+    audio_analysis: AudioAnalysis | None = None
 
 
 class JobInfo(BaseModel):
