@@ -230,14 +230,21 @@ async def update_segment_speaker(meeting_id: str, update: SegmentSpeakerUpdate):
     if not segment:
         raise HTTPException(status_code=404, detail="Segment not found")
 
-    # Create a unique speaker ID for this segment
+    normalized = update.speaker_name.strip().casefold()
+    existing_id = next(
+        (sid for sid, name in metadata.speakers.items() if name.strip().casefold() == normalized),
+        None,
+    )
+
+    if existing_id is not None:
+        segment.speaker = existing_id
+        transcript_path.write_text(json.dumps(transcript.model_dump(), ensure_ascii=False, indent=2))
+        return {"ok": True}
+
     new_speaker_id = f"{segment.speaker}_seg_{update.segment_id}"
     segment.speaker = new_speaker_id
-
-    # Save updated transcript
     transcript_path.write_text(json.dumps(transcript.model_dump(), ensure_ascii=False, indent=2))
 
-    # Map the new speaker ID to the given name
     metadata.speakers[new_speaker_id] = update.speaker_name
     _save_metadata(metadata)
 
