@@ -158,6 +158,7 @@ Analyze the transcript and produce a structured evaluation. Be specific — cite
 
 ---
 
+[AUDIO ANALYSIS CONTEXT]
 ## Transcript
 
 [MEETING CONTEXT]
