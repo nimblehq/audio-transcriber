@@ -114,6 +114,7 @@ async function loadMeetingView(container, meetingId) {
             setupSpeakersSidebar();
             window._meetingAudioAnalysis = audioAnalysis;
             window._meetingMeta = meta;
+            window._meetingTranscript = transcript;
         }
     } catch (err) {
         container.innerHTML = `<div class="error-state">Failed to load meeting: ${escapeHtml(err.message)}</div>`;
@@ -498,6 +499,14 @@ function switchTab(tabName, meetingId, meetingType) {
 
     if (tabName === 'plaintext') {
         renderPlainTextTab(tabEl);
+    }
+
+    if (tabName === 'overview') {
+        renderOverviewTab(tabEl, {
+            metadata: window._meetingMeta,
+            audio_analysis: window._meetingAudioAnalysis,
+            transcript: window._meetingTranscript,
+        });
     }
 
     if (tabName === 'analysis' && !tabEl.dataset.loaded) {

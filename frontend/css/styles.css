@@ -687,6 +687,141 @@ body {
     cursor: help;
 }
 
+/* Overview tab */
+.overview-view {
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
+}
+
+.overview-section {
+    background: var(--bg-surface);
+    border-radius: var(--radius);
+    padding: 16px 20px;
+}
+
+.overview-heading {
+    font-size: 14px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--text-muted);
+    margin-bottom: 12px;
+}
+
+.overview-empty {
+    text-align: center;
+    padding: 48px 20px;
+    color: var(--text-muted);
+}
+
+.overview-empty p {
+    margin-bottom: 8px;
+}
+
+.overview-empty-hint {
+    font-size: 13px;
+}
+
+.overview-empty a {
+    color: var(--primary);
+    text-decoration: none;
+}
+
+.overview-empty a:hover {
+    text-decoration: underline;
+}
+
+.overview-notice {
+    background: var(--bg-surface);
+    border-left: 3px solid var(--warning);
+    padding: 12px 16px;
+    border-radius: var(--radius-sm);
+    color: var(--text-muted);
+    font-size: 13px;
+}
+
+.overview-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.overview-list li {
+    font-size: 14px;
+    color: var(--text);
+}
+
+.overview-muted {
+    color: var(--text-muted);
+    font-size: 13px;
+}
+
+.trajectory-chart svg {
+    width: 100%;
+    height: 160px;
+    display: block;
+}
+
+.trajectory-baseline {
+    stroke: var(--border);
+    stroke-width: 1;
+    stroke-dasharray: 3 3;
+}
+
+.trajectory-line {
+    stroke: var(--primary);
+    stroke-width: 2;
+}
+
+.trajectory-point {
+    fill: var(--primary);
+    stroke: var(--bg-surface);
+    stroke-width: 2;
+    cursor: pointer;
+    transition: r 0.15s;
+}
+
+.trajectory-point:hover,
+.trajectory-point:focus {
+    r: 7;
+    outline: none;
+}
+
+.trajectory-label {
+    fill: var(--text-muted);
+    font-size: 10px;
+    font-family: 'SF Mono', 'Fira Code', monospace;
+}
+
+.trajectory-legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 16px;
+    margin-top: 8px;
+    font-size: 12px;
+    color: var(--text-muted);
+}
+
+.trajectory-legend-item {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.legend-swatch {
+    display: inline-block;
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+}
+
+.legend-positive { background: var(--success); }
+.legend-negative { background: var(--danger); }
+
 /* Speaker Editor Popover */
 .speaker-popover {
     position: absolute;
