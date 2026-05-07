@@ -56,10 +56,14 @@ async def client(data_dir: Path) -> AsyncClient:
     config_module.MEETINGS_DIR = data_dir / "meetings"
 
     # Also patch the routers module that may have imported these
+    import backend.routers.analysis as analysis_module
     import backend.routers.meetings as meetings_module
 
     original_router_meetings_dir = getattr(meetings_module, "MEETINGS_DIR", None)
     meetings_module.MEETINGS_DIR = data_dir / "meetings"
+
+    original_analysis_meetings_dir = getattr(analysis_module, "MEETINGS_DIR", None)
+    analysis_module.MEETINGS_DIR = data_dir / "meetings"
 
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://test") as ac:
@@ -69,6 +73,8 @@ async def client(data_dir: Path) -> AsyncClient:
     config_module.MEETINGS_DIR = original_meetings_dir
     if original_router_meetings_dir is not None:
         meetings_module.MEETINGS_DIR = original_router_meetings_dir
+    if original_analysis_meetings_dir is not None:
+        analysis_module.MEETINGS_DIR = original_analysis_meetings_dir
 
 
 @pytest.fixture

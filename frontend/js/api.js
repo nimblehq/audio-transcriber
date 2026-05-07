@@ -69,6 +69,12 @@ const API = {
         return res.json();
     },
 
+    async getAnalysisContext(meetingId) {
+        const res = await fetch(`/api/meetings/${meetingId}/analysis-context`);
+        if (!res.ok) throw new Error('Failed to fetch analysis context');
+        return res.json();
+    },
+
     async updateSegmentSpeaker(meetingId, segmentId, speakerName) {
         const res = await fetch(`/api/meetings/${meetingId}/segments/speaker`, {
             method: 'PATCH',

@@ -238,6 +238,7 @@ Categories: Confusion | Misunderstanding | Hidden Disagreement | Unresolved
 *Summary prepared by Nimble*
 ```
 
+[AUDIO ANALYSIS CONTEXT]
 ## Transcript
 
 [MEETING CONTEXT]

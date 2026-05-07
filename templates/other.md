@@ -153,6 +153,7 @@ Categories: Confusion | Misunderstanding | Hidden Disagreement | Unresolved
 `XX% talk | XQ | X adopted | driver:[y/n] | hedge:X | commits:[s/m/v]`
 ```
 
+[AUDIO ANALYSIS CONTEXT]
 ## Transcript
 
 [MEETING CONTEXT]
