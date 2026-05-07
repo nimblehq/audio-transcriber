@@ -146,45 +146,90 @@ function wireTrajectorySeek(container) {
 
 function summarizeInterruptions(interactions, meta) {
     const speakers = (meta && meta.speakers) || {};
-    const counts = {};
+    const pairCounts = {};
+    const made = {};
+    const received = {};
+    let total = 0;
+
     interactions
         .filter(e => e.event_type === 'interruption')
         .forEach(e => {
             const key = `${e.speaker_b}|${e.speaker_a}`;
-            counts[key] = (counts[key] || 0) + 1;
+            pairCounts[key] = (pairCounts[key] || 0) + 1;
+            made[e.speaker_b] = (made[e.speaker_b] || 0) + 1;
+            received[e.speaker_a] = (received[e.speaker_a] || 0) + 1;
+            total += 1;
         });
 
-    const pairs = Object.entries(counts).map(([key, count]) => {
+    const speakerIds = new Set([...Object.keys(made), ...Object.keys(received)]);
+    const totals = [...speakerIds].map(id => ({
+        speakerId: id,
+        name: speakers[id] || id,
+        made: made[id] || 0,
+        received: received[id] || 0,
+    }));
+    totals.sort((a, b) => (b.made + b.received) - (a.made + a.received));
+
+    const pairs = Object.entries(pairCounts).map(([key, count]) => {
         const [interrupter, interrupted] = key.split('|');
-        const reverseKey = `${interrupted}|${interrupter}`;
         return {
             interrupter,
             interrupted,
             interrupterName: speakers[interrupter] || interrupter,
             interruptedName: speakers[interrupted] || interrupted,
             count,
-            reverse: counts[reverseKey] || 0,
         };
     });
     pairs.sort((a, b) => b.count - a.count);
-    return pairs;
+
+    return { total, totals, pairs };
 }
 
-function renderInterruptionSummary(pairs) {
-    if (pairs.length === 0) {
+function renderInterruptionSummary({ total, totals, pairs }) {
+    if (total === 0) {
         return '<p class="overview-muted">No interruptions detected.</p>';
     }
+
+    const totalsRows = totals.map(t => `
+        <tr>
+            <td>${escapeHtml(t.name)}</td>
+            <td class="overview-num">${t.made}</td>
+            <td class="overview-num">${t.received}</td>
+        </tr>
+    `).join('');
+
+    const pairLines = pairs.slice(0, 6).map(p => `
+        <li>
+            <strong>${escapeHtml(p.interrupterName)}</strong>
+            <span class="overview-muted"> → </span>
+            <strong>${escapeHtml(p.interruptedName)}</strong>
+            <span class="overview-muted">: ${p.count} time${p.count === 1 ? '' : 's'}</span>
+        </li>
+    `).join('');
+
+    const more = pairs.length > 6 ? `<li class="overview-muted">+${pairs.length - 6} more pair${pairs.length - 6 === 1 ? '' : 's'}</li>` : '';
+
     return `
-        <ul class="overview-list">
-            ${pairs.map(p => `
-                <li>
-                    <strong>${escapeHtml(p.interrupterName)}</strong> interrupted
-                    <strong>${escapeHtml(p.interruptedName)}</strong>
-                    ${p.count} time${p.count === 1 ? '' : 's'}
-                    <span class="overview-muted">(reverse: ${p.reverse})</span>
-                </li>
-            `).join('')}
-        </ul>
+        <p class="overview-muted">${total} interruption${total === 1 ? '' : 's'} total</p>
+        <table class="overview-table">
+            <thead>
+                <tr>
+                    <th>Speaker</th>
+                    <th class="overview-num">Interruptions made</th>
+                    <th class="overview-num">Times interrupted</th>
+                </tr>
+            </thead>
+            <tbody>
+                ${totalsRows}
+            </tbody>
+        </table>
+        <details class="overview-details">
+            <summary>Who interrupted whom (top pairs)</summary>
+            <ul class="overview-list overview-list-compact">
+                ${pairLines}
+                ${more}
+            </ul>
+        </details>
     `;
 }
 
