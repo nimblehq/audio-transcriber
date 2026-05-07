@@ -1,4 +1,5 @@
 function renderAnalysisTab(container, meetingId, meetingType) {
+    if (meetingId) container.dataset.meetingId = meetingId;
     container.innerHTML = `
         <div class="analysis-generator">
             <p>Select a template to generate a prompt you can paste into any LLM for analysis.</p>
@@ -22,14 +23,27 @@ function renderAnalysisTab(container, meetingId, meetingType) {
 async function handleGeneratePrompt() {
     const btn = document.getElementById('generate-prompt-btn');
     const type = document.getElementById('analysis-type').value;
+    const tabContainer = document.getElementById('analysis-tab');
+    const meetingId = tabContainer ? tabContainer.dataset.meetingId : '';
     btn.disabled = true;
     btn.textContent = 'Generating...';
 
     try {
-        const result = await API.getTemplate(type);
+        const [templateResult, audioContextResult] = await Promise.all([
+            API.getTemplate(type),
+            meetingId ? API.getAnalysisContext(meetingId) : Promise.resolve({ context: '' }),
+        ]);
         const transcript = buildPlainTextTranscript();
         const context = getMeetingContext();
-        let prompt = result.template;
+        const audioContext = audioContextResult.context || '';
+        let prompt = templateResult.template;
+        if (audioContext) {
+            prompt = prompt.replace('[AUDIO ANALYSIS CONTEXT]', audioContext);
+        } else {
+            // Strip the placeholder line entirely so the prompt remains
+            // byte-identical to the pre-feature output (BR-4.4).
+            prompt = prompt.replace('[AUDIO ANALYSIS CONTEXT]\n', '');
+        }
         if (context) {
             prompt = prompt.replace('[MEETING CONTEXT]', '## Meeting Context\n\n' + context);
         } else {
@@ -37,8 +51,7 @@ async function handleGeneratePrompt() {
         }
         prompt = prompt.replace('[PASTE TRANSCRIPT HERE]', transcript);
 
-        const container = document.getElementById('analysis-tab');
-        renderPromptContent(container, prompt);
+        renderPromptContent(tabContainer, prompt);
     } catch (err) {
         showToast(err.message, 'error');
         btn.disabled = false;
