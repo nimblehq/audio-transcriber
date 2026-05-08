@@ -15,6 +15,7 @@ async function loadMeetingView(container, meetingId) {
         const meeting = await API.getMeeting(meetingId);
         const meta = meeting.metadata;
         const transcript = meeting.transcript;
+        const audioAnalysis = meeting.audio_analysis || null;
 
         const isProcessing = meta.status === 'processing';
         const isError = meta.status === 'error';
@@ -75,6 +76,7 @@ async function loadMeetingView(container, meetingId) {
 
                     <div class="tabs">
                         <button class="tab tab-active" data-tab="transcript" onclick="switchTab('transcript', '${meetingId}', '${meta.type}')">Transcript</button>
+                        <button class="tab" data-tab="overview" onclick="switchTab('overview', '${meetingId}', '${meta.type}')">Overview</button>
                         <button class="tab" data-tab="plaintext" onclick="switchTab('plaintext', '${meetingId}', '${meta.type}')">Plain Text</button>
                         <button class="tab" data-tab="analysis" onclick="switchTab('analysis', '${meetingId}', '${meta.type}')">Analysis</button>
                         <label class="auto-scroll-toggle">
@@ -84,6 +86,7 @@ async function loadMeetingView(container, meetingId) {
                     </div>
 
                     <div id="transcript-tab" class="tab-content tab-content-active"></div>
+                    <div id="overview-tab" class="tab-content" hidden></div>
                     <div id="plaintext-tab" class="tab-content" hidden></div>
                     <div id="analysis-tab" class="tab-content" hidden></div>
 
@@ -105,10 +108,13 @@ async function loadMeetingView(container, meetingId) {
         if (!isProcessing && !isError && transcript) {
             setupAudioPlayer(meetingId);
             setupContextEditor(meetingId);
-            renderSegments(document.getElementById('transcript-tab'), transcript, meta, meetingId);
+            renderSegments(document.getElementById('transcript-tab'), transcript, meta, meetingId, audioAnalysis);
             setupScrollDetection();
             setupBackToTop();
             setupSpeakersSidebar();
+            window._meetingAudioAnalysis = audioAnalysis;
+            window._meetingMeta = meta;
+            window._meetingTranscript = transcript;
         }
     } catch (err) {
         container.innerHTML = `<div class="error-state">Failed to load meeting: ${escapeHtml(err.message)}</div>`;
@@ -187,7 +193,7 @@ function setupContextEditor(meetingId) {
     });
 }
 
-function renderSegments(container, transcript, meta, meetingId) {
+function renderSegments(container, transcript, meta, meetingId, audioAnalysis) {
     const speakers = { ...meta.speakers };
     const speakerIds = [];
     const firstSegmentIndex = {};
@@ -203,11 +209,15 @@ function renderSegments(container, transcript, meta, meetingId) {
     // Store speakers data globally so onclick handlers can reference it without inline JSON
     window._speakerEditorState = { speakers, meetingId, speakerIds, speakerColorMap, firstSegmentIndex };
 
+    const showInsights = AudioInsights.hasCompletedAnalysis(meta, audioAnalysis);
+    const insightsBySegment = showInsights ? AudioInsights.indexBySegment(audioAnalysis) : {};
+
     container.innerHTML = `
         <div class="segments" id="segments-container">
             ${transcript.segments.map((seg, i) => {
                 const speakerName = speakers[seg.speaker] || seg.speaker;
                 const color = speakerColorMap[seg.speaker];
+                const insights = showInsights ? renderSegmentInsights(seg, insightsBySegment[seg.id]) : '';
                 return `
                     <div class="segment" id="seg-${i}" data-start="${seg.start}" data-end="${seg.end}" data-segment-id="${escapeHtml(seg.id)}">
                         <div class="segment-header">
@@ -216,6 +226,7 @@ function renderSegments(container, transcript, meta, meetingId) {
                                 onclick="handleSpeakerClick(this, '${seg.speaker}', '${seg.id}')">
                                 ${escapeHtml(speakerName)} ▾
                             </span>
+                            ${insights}
                             <button class="btn btn-icon btn-segment-play" onclick="playFromSegment(${seg.start})" title="Play from here">▶</button>
                         </div>
                         <div class="segment-text">${escapeHtml(seg.text)}</div>
@@ -224,6 +235,43 @@ function renderSegments(container, transcript, meta, meetingId) {
             }).join('')}
         </div>
     `;
+}
+
+function renderSegmentInsights(seg, insights) {
+    if (!insights) return '';
+    const parts = [];
+    const { emotion, prosody, interaction } = insights;
+
+    if (emotion) {
+        const label = AudioInsights.EMOTION_LABELS[emotion.primary_emotion] || emotion.primary_emotion;
+        const muted = emotion.low_confidence ? ' emotion-badge-muted' : '';
+        const tooltip = `Tone: ${label} (confidence ${(emotion.confidence * 100).toFixed(0)}%)`;
+        const hedge = emotion.low_confidence ? '?' : '';
+        parts.push(
+            `<span class="emotion-badge emotion-${emotion.primary_emotion}${muted}" title="${escapeHtml(tooltip)}">${escapeHtml(label)}${hedge}</span>`
+        );
+    }
+
+    if (prosody) {
+        parts.push(
+            `<span class="prosody-indicator" title="${escapeHtml(AudioInsights.formatProsodyTooltip(prosody))}" aria-label="Prosody summary">≈</span>`
+        );
+    }
+
+    if (emotion && AudioInsights.isWordToneMismatch(emotion, seg.text)) {
+        const tooltip = `Words signal agreement but tone reads ${emotion.primary_emotion} (${(emotion.confidence * 100).toFixed(0)}% confidence). Click to seek.`;
+        parts.push(
+            `<button type="button" class="mismatch-marker" title="${escapeHtml(tooltip)}" onclick="playFromSegment(${seg.start})" aria-label="Word-tone mismatch — seek to ${formatTimestamp(seg.start)}">⚠ tone</button>`
+        );
+    }
+
+    if (interaction && AudioInsights.hasInteractionMarker(interaction)) {
+        parts.push(
+            `<span class="interaction-marker" title="${escapeHtml(AudioInsights.interactionTooltip(interaction))}" aria-label="Interaction event">↺</span>`
+        );
+    }
+
+    return parts.length ? `<span class="segment-insights">${parts.join('')}</span>` : '';
 }
 
 function handleSpeakerClick(element, speakerId, segmentId) {
@@ -451,6 +499,14 @@ function switchTab(tabName, meetingId, meetingType) {
 
     if (tabName === 'plaintext') {
         renderPlainTextTab(tabEl);
+    }
+
+    if (tabName === 'overview') {
+        renderOverviewTab(tabEl, {
+            metadata: window._meetingMeta,
+            audio_analysis: window._meetingAudioAnalysis,
+            transcript: window._meetingTranscript,
+        });
     }
 
     if (tabName === 'analysis' && !tabEl.dataset.loaded) {

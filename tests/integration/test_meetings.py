@@ -197,6 +197,43 @@ class TestGetMeeting:
         res = await client.get("/api/meetings/nonexistent")
         assert res.status_code == 404
 
+    async def test_audio_analysis_absent_when_not_run(self, client, populated_meeting):
+        """A meeting without audio_analysis.json on disk reports audio_analysis=null."""
+        res = await client.get(f"/api/meetings/{populated_meeting}")
+        assert res.status_code == 200
+        assert res.json()["audio_analysis"] is None
+
+    async def test_audio_analysis_returned_when_present(self, client, populated_meeting, meetings_dir: Path):
+        """The audio_analysis.json file on disk is returned in MeetingDetail."""
+        audio_analysis = {
+            "status": "completed",
+            "emotions": [
+                {
+                    "segment_id": "seg-001",
+                    "speaker": "SPEAKER_00",
+                    "start": 0.0,
+                    "end": 5.2,
+                    "primary_emotion": "confident",
+                    "confidence": 0.82,
+                    "emotion_scores": {"confident": 0.82, "neutral": 0.18},
+                    "low_confidence": False,
+                }
+            ],
+            "prosody": [],
+            "interactions": [],
+            "segment_interactions": [],
+            "dominant_speaker_limitation": False,
+        }
+        (meetings_dir / populated_meeting / "audio_analysis.json").write_text(json.dumps(audio_analysis))
+
+        res = await client.get(f"/api/meetings/{populated_meeting}")
+        assert res.status_code == 200
+        data = res.json()["audio_analysis"]
+        assert data is not None
+        assert data["status"] == "completed"
+        assert len(data["emotions"]) == 1
+        assert data["emotions"][0]["primary_emotion"] == "confident"
+
 
 class TestUpdateMeeting:
     async def test_update_title(self, client, populated_meeting):

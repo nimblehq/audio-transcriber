@@ -9,6 +9,7 @@ from fastapi import APIRouter, File, Form, HTTPException, UploadFile
 from fastapi.responses import FileResponse
 
 from backend.schemas import (
+    AudioAnalysis,
     JobStatus,
     MeetingDetail,
     MeetingMetadata,
@@ -194,7 +195,13 @@ async def get_meeting(meeting_id: str):
         with open(transcript_path) as f:
             transcript = Transcript(**json.load(f))
 
-    return MeetingDetail(metadata=metadata, transcript=transcript)
+    audio_analysis = None
+    audio_analysis_path = MEETINGS_DIR / meeting_id / "audio_analysis.json"
+    if audio_analysis_path.exists():
+        with open(audio_analysis_path) as f:
+            audio_analysis = AudioAnalysis(**json.load(f))
+
+    return MeetingDetail(metadata=metadata, transcript=transcript, audio_analysis=audio_analysis)
 
 
 @router.patch("/meetings/{meeting_id}", response_model=MeetingMetadata)
