@@ -1,9 +1,12 @@
 function renderMeetingList(container) {
     container.innerHTML = `
-        <div class="page-header">
-            <h1>Meetings</h1>
+        <header class="page-header page-header--meetings">
+            <div>
+                <div class="page-eyebrow">Library</div>
+                <h1>Meetings</h1>
+            </div>
             <button class="btn btn-primary" onclick="App.navigate('/upload')">Upload Recording</button>
-        </div>
+        </header>
         <div id="meetings-list" class="meetings-list">
             <div class="loading">Loading meetings...</div>
         </div>
@@ -27,20 +30,22 @@ async function loadMeetings() {
         }
 
         listEl.innerHTML = meetings.map(m => `
-            <div class="meeting-row" onclick="App.navigate('/meetings/${m.id}')">
+            <button class="meeting-row" type="button" onclick="App.navigate('/meetings/${m.id}')">
                 <div class="meeting-info">
                     <span class="meeting-title">${escapeHtml(m.title)}</span>
                     <span class="meeting-meta">
-                        <span class="badge badge-${m.type}">${m.type}</span>
+                        <span class="meta-pill meta-pill-${m.type}">${escapeHtml(m.type)}</span>
+                        <span class="meta-sep">&middot;</span>
                         <span>${formatDate(m.created_at)}</span>
-                        <span>${formatDuration(m.duration_seconds)}</span>
+                        <span class="meta-sep">&middot;</span>
+                        <span class="meeting-duration">${formatDuration(m.duration_seconds)}</span>
                     </span>
                 </div>
                 <div class="meeting-status status-${m.status}">
-                    ${m.status === 'processing' ? '<span class="spinner-small"></span>' : ''}
-                    ${m.status}
+                    ${m.status === 'processing' ? '<span class="spinner-small"></span>' : '<span class="meeting-status-dot"></span>'}
+                    <span>${escapeHtml(m.status)}</span>
                 </div>
-            </div>
+            </button>
         `).join('');
     } catch (err) {
         listEl.innerHTML = `<div class="error-state">Failed to load meetings: ${escapeHtml(err.message)}</div>`;

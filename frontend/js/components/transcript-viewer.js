@@ -5,6 +5,9 @@ let userScrolledAway = false;
 let scrollTimeout = null;
 let backToTopHandler = null;
 
+const ICON_PLAY = '<svg viewBox="0 0 12 12" fill="currentColor" stroke="none"><path d="M3 2 L10 6 L3 10 Z"/></svg>';
+const ICON_PAUSE = '<svg viewBox="0 0 12 12" fill="currentColor" stroke="none"><rect x="3" y="2" width="2.5" height="8" rx="0.5"/><rect x="6.5" y="2" width="2.5" height="8" rx="0.5"/></svg>';
+
 function renderTranscriptView(container, meetingId) {
     container.innerHTML = '<div class="loading">Loading meeting...</div>';
     loadMeetingView(container, meetingId);
@@ -23,12 +26,12 @@ async function loadMeetingView(container, meetingId) {
         container.innerHTML = `
             <div class="meeting-view">
                 <div class="page-header">
-                    <button class="btn btn-text" onclick="App.navigate('/')">← Back</button>
+                    <button class="btn-back" onclick="App.navigate('/')" aria-label="Back to meetings"><svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M9 2 L4 7 L9 12"/></svg></button>
                     <h1 id="meeting-title">${escapeHtml(meta.title)}</h1>
                     <div class="header-actions">
-                        <span class="badge badge-${meta.type}">${meta.type}</span>
-                        ${!isProcessing ? `<button class="btn btn-text" onclick="handleRerunTranscription('${meetingId}')">Re-run</button>` : ''}
-                        <button class="btn btn-text btn-delete" onclick="handleDeleteMeeting('${meetingId}')">Delete</button>
+                        <span class="meta-pill meta-pill-${meta.type}">${escapeHtml(meta.type)}</span>
+                        ${!isProcessing ? `<button class="btn btn-outline" onclick="handleRerunTranscription('${meetingId}')">Re-run</button>` : ''}
+                        <button class="btn btn-outline btn-outline-danger" onclick="handleDeleteMeeting('${meetingId}')">Delete</button>
                     </div>
                 </div>
 
@@ -54,9 +57,9 @@ async function loadMeetingView(container, meetingId) {
                     <div class="audio-player" id="audio-player">
                         <audio id="audio-element" preload="metadata"></audio>
                         <div class="player-controls">
-                            <button class="btn btn-icon" id="skip-back" title="Back 15s">-15s</button>
-                            <button class="btn btn-icon btn-play" id="play-pause" title="Play/Pause">▶</button>
-                            <button class="btn btn-icon" id="skip-forward" title="Forward 15s">+15s</button>
+                            <button class="btn btn-icon" id="skip-back" title="Back 15s" aria-label="Back 15 seconds"><svg viewBox="0 0 12 12" fill="currentColor" stroke="none" aria-hidden="true"><path d="M10 2 L5 6 L10 10 Z M5 2 L0 6 L5 10 Z"/></svg></button>
+                            <button class="btn btn-icon btn-play" id="play-pause" title="Play/Pause" aria-label="Play"><svg viewBox="0 0 12 12" fill="currentColor" stroke="none" aria-hidden="true"><path d="M3 2 L10 6 L3 10 Z"/></svg></button>
+                            <button class="btn btn-icon" id="skip-forward" title="Forward 15s" aria-label="Forward 15 seconds"><svg viewBox="0 0 12 12" fill="currentColor" stroke="none" aria-hidden="true"><path d="M2 2 L7 6 L2 10 Z M7 2 L12 6 L7 10 Z"/></svg></button>
                         </div>
                         <div class="player-seek">
                             <span id="current-time">0:00</span>
@@ -136,10 +139,12 @@ function setupAudioPlayer(meetingId) {
     playPause.addEventListener('click', () => {
         if (audio.paused) {
             audio.play();
-            playPause.textContent = '⏸';
+            playPause.innerHTML = ICON_PAUSE;
+            playPause.setAttribute('aria-label', 'Pause');
         } else {
             audio.pause();
-            playPause.textContent = '▶';
+            playPause.innerHTML = ICON_PLAY;
+            playPause.setAttribute('aria-label', 'Play');
         }
     });
 
@@ -160,7 +165,8 @@ function setupAudioPlayer(meetingId) {
     });
 
     audio.addEventListener('ended', () => {
-        playPause.textContent = '▶';
+        playPause.innerHTML = ICON_PLAY;
+        playPause.setAttribute('aria-label', 'Play');
     });
 
     seekBar.addEventListener('input', () => {
@@ -212,20 +218,23 @@ function renderSegments(container, transcript, meta, meetingId, audioAnalysis) {
     const showInsights = AudioInsights.hasCompletedAnalysis(meta, audioAnalysis);
     const insightsBySegment = showInsights ? AudioInsights.indexBySegment(audioAnalysis) : {};
 
+    let prevSpeaker = null;
     container.innerHTML = `
         <div class="segments" id="segments-container">
             ${transcript.segments.map((seg, i) => {
                 const speakerName = speakers[seg.speaker] || seg.speaker;
                 const color = speakerColorMap[seg.speaker];
                 const insights = showInsights ? renderSegmentInsights(seg, insightsBySegment[seg.id]) : '';
+                const isContinuation = seg.speaker === prevSpeaker;
+                prevSpeaker = seg.speaker;
                 return `
-                    <div class="segment" id="seg-${i}" data-start="${seg.start}" data-end="${seg.end}" data-segment-id="${escapeHtml(seg.id)}">
+                    <div class="segment${isContinuation ? ' segment-cont' : ''}" id="seg-${i}" data-start="${seg.start}" data-end="${seg.end}" data-segment-id="${escapeHtml(seg.id)}">
                         <div class="segment-header">
                             <span class="segment-time">${formatTimestamp(seg.start)}</span>
-                            <span class="speaker-label" style="background-color: ${color}" data-speaker="${seg.speaker}"
+                            <button type="button" class="speaker-label" style="background-color: ${color}" data-speaker="${seg.speaker}"
                                 onclick="handleSpeakerClick(this, '${seg.speaker}', '${seg.id}')">
-                                ${escapeHtml(speakerName)} ▾
-                            </span>
+                                ${escapeHtml(speakerName)}<svg class="speaker-label-chevron" width="8" height="6" viewBox="0 0 8 6" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" aria-hidden="true"><path d="M1 1.5 L4 4.5 L7 1.5"/></svg>
+                            </button>
                             ${insights}
                             <button class="btn btn-icon btn-segment-play" onclick="playFromSegment(${seg.start})" title="Play from here">▶</button>
                         </div>
@@ -254,7 +263,7 @@ function renderSegmentInsights(seg, insights) {
 
     if (prosody) {
         parts.push(
-            `<span class="prosody-indicator" title="${escapeHtml(AudioInsights.formatProsodyTooltip(prosody))}" aria-label="Prosody summary">≈</span>`
+            `<span class="prosody-indicator" title="${escapeHtml(AudioInsights.formatProsodyTooltip(prosody))}" aria-label="Prosody summary"><i></i><i></i><i></i></span>`
         );
     }
 
@@ -425,7 +434,10 @@ function playFromSegment(startTime) {
     currentAudio.currentTime = startTime;
     currentAudio.play();
     const playPause = document.getElementById('play-pause');
-    if (playPause) playPause.textContent = '⏸';
+    if (playPause) {
+        playPause.innerHTML = ICON_PAUSE;
+        playPause.setAttribute('aria-label', 'Pause');
+    }
 }
 
 function highlightCurrentSegment(currentTime) {

@@ -94,10 +94,90 @@ body {
     color: var(--text);
     padding: 6px 10px;
     border: 1px solid var(--border);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
 }
 
 .btn-icon:hover {
     background: var(--bg-hover);
+}
+
+.btn-icon:focus-visible,
+.btn-text:focus-visible {
+    outline: 2px solid var(--primary);
+    outline-offset: 2px;
+}
+
+.btn-icon svg {
+    width: 14px;
+    height: 14px;
+    display: block;
+}
+
+.btn-play svg {
+    width: 12px;
+    height: 12px;
+}
+
+.btn-back {
+    background: none;
+    border: 0;
+    width: 28px;
+    height: 28px;
+    padding: 0;
+    margin-right: 4px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 4px;
+    color: var(--text-muted);
+    cursor: pointer;
+    flex-shrink: 0;
+}
+
+.btn-back:hover {
+    background: var(--bg-hover);
+    color: var(--text);
+}
+
+.btn-back:focus-visible {
+    outline: 2px solid var(--primary);
+    outline-offset: 2px;
+}
+
+.btn-outline {
+    background: transparent;
+    color: var(--text-muted);
+    border: 1px solid var(--border);
+    padding: 6px 14px;
+    font-weight: 500;
+    transition: color 120ms, border-color 120ms, background-color 120ms;
+}
+
+.btn-outline:hover:not(:disabled) {
+    color: var(--text);
+    border-color: var(--text-muted);
+}
+
+.btn-outline:focus-visible {
+    outline: 2px solid var(--primary);
+    outline-offset: 2px;
+}
+
+.btn-outline-danger {
+    color: var(--danger);
+    border-color: rgba(217, 74, 74, 0.4);
+}
+
+.btn-outline-danger:hover:not(:disabled) {
+    color: var(--danger);
+    background: rgba(217, 74, 74, 0.06);
+    border-color: var(--danger);
+}
+
+[data-theme="light"] .btn-outline-danger {
+    border-color: rgba(212, 52, 52, 0.4);
 }
 
 .btn-large {
@@ -162,6 +242,28 @@ body {
     gap: 8px;
 }
 
+.page-header--meetings {
+    align-items: flex-end;
+    justify-content: space-between;
+    margin-bottom: 24px;
+}
+
+.page-header--meetings h1 {
+    font-size: 26px;
+    font-weight: 700;
+    line-height: 1.1;
+    letter-spacing: -0.015em;
+}
+
+.page-eyebrow {
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+    margin-bottom: 6px;
+}
+
 /* Badges */
 .badge {
     display: inline-block;
@@ -186,22 +288,37 @@ body {
 .meetings-list {
     display: flex;
     flex-direction: column;
-    gap: 2px;
+    gap: 4px;
 }
 
 .meeting-row {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 14px 16px;
+    gap: 16px;
+    width: 100%;
+    padding: 14px 18px;
     background: var(--bg-surface);
+    border: 0;
     border-radius: var(--radius);
     cursor: pointer;
-    transition: background-color 0.15s;
+    color: inherit;
+    font-family: inherit;
+    text-align: left;
+    transition: background-color 140ms cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 .meeting-row:hover {
     background: var(--bg-hover);
+}
+
+.meeting-row:hover .meeting-title {
+    color: var(--primary);
+}
+
+.meeting-row:focus-visible {
+    outline: 2px solid var(--primary);
+    outline-offset: -2px;
 }
 
 .meeting-info {
@@ -209,30 +326,97 @@ body {
     flex-direction: column;
     gap: 4px;
     min-width: 0;
+    flex: 1;
 }
 
 .meeting-title {
+    font-size: 15px;
     font-weight: 500;
+    line-height: 1.35;
+    color: var(--text);
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
+    transition: color 140ms;
 }
 
 .meeting-meta {
     display: flex;
     align-items: center;
-    gap: 12px;
-    font-size: 13px;
+    gap: 10px;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
     color: var(--text-muted);
 }
 
-.meeting-status {
-    font-size: 13px;
-    text-transform: capitalize;
-    display: flex;
+.meta-sep {
+    opacity: 0.5;
+}
+
+.meta-pill {
+    display: inline-flex;
     align-items: center;
     gap: 6px;
+    padding: 1px 0;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
 }
+
+.meta-pill::before {
+    content: "";
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: currentColor;
+    flex-shrink: 0;
+}
+
+.meta-pill-other     { color: #d4d48a; }
+.meta-pill-client    { color: #7ae488; }
+.meta-pill-interview { color: #7aa8e4; }
+.meta-pill-sales     { color: #d48ae4; }
+
+[data-theme="light"] .meta-pill-other     { color: #7a7a2a; }
+[data-theme="light"] .meta-pill-client    { color: #2a7a3a; }
+[data-theme="light"] .meta-pill-interview { color: #2a5a9c; }
+[data-theme="light"] .meta-pill-sales     { color: #8a3a9c; }
+
+.meeting-duration {
+    font-family: 'SF Mono', 'Fira Code', monospace;
+    font-variant-numeric: tabular-nums;
+    font-feature-settings: "tnum";
+    font-weight: 500;
+    letter-spacing: 0;
+    text-transform: none;
+    opacity: 0.85;
+}
+
+.meeting-status {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--text-muted);
+    text-transform: capitalize;
+    flex-shrink: 0;
+}
+
+.meeting-status-dot {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: currentColor;
+    flex-shrink: 0;
+}
+
+.status-ready .meeting-status-dot { background: var(--success); }
+.status-processing .meeting-status-dot { background: var(--warning); }
+.status-error .meeting-status-dot { background: var(--danger); }
 
 .status-ready { color: var(--success); }
 .status-processing { color: var(--warning); }
@@ -438,15 +622,27 @@ body {
 .audio-player {
     background: var(--bg-surface);
     border-radius: var(--radius);
-    padding: 16px 20px;
+    padding: 14px 20px;
     margin-bottom: 20px;
     display: flex;
     align-items: center;
     gap: 16px;
     position: sticky;
-    top: 0;
+    top: 12px;
     z-index: 10;
     box-shadow: 0 2px 8px var(--shadow);
+}
+
+.audio-player .btn-icon {
+    width: 36px;
+    height: 36px;
+    padding: 0;
+    flex-shrink: 0;
+}
+
+.audio-player .btn-icon svg {
+    width: 12px;
+    height: 12px;
 }
 
 .player-controls {
@@ -533,6 +729,12 @@ body {
     border-bottom-color: var(--primary);
 }
 
+.tab:focus-visible {
+    outline: 2px solid var(--primary);
+    outline-offset: -2px;
+    border-radius: 4px 4px 0 0;
+}
+
 .tab-content {
     display: none;
 }
@@ -559,14 +761,21 @@ body {
 .segments {
     display: flex;
     flex-direction: column;
-    gap: 4px;
 }
 
 .segment {
-    padding: 12px 16px;
+    padding: 10px 16px;
     border-radius: var(--radius);
     border-left: 3px solid transparent;
     transition: background-color 0.15s, border-color 0.15s;
+}
+
+.segment + .segment {
+    margin-top: 14px;
+}
+
+.segment + .segment-cont {
+    margin-top: 6px;
 }
 
 .segment:hover {
@@ -593,9 +802,13 @@ body {
 }
 
 .speaker-label {
-    display: inline-block;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
     padding: 2px 10px;
+    border: 0;
     border-radius: 12px;
+    font-family: inherit;
     font-size: 13px;
     font-weight: 500;
     color: white;
@@ -605,6 +818,17 @@ body {
 
 .speaker-label:hover {
     opacity: 0.8;
+}
+
+.speaker-label:focus-visible {
+    outline: 2px solid var(--primary);
+    outline-offset: 2px;
+}
+
+.speaker-label-chevron {
+    display: block;
+    opacity: 0.85;
+    flex-shrink: 0;
 }
 
 .btn-segment-play {
@@ -621,8 +845,9 @@ body {
 
 .segment-text {
     font-size: 15px;
-    line-height: 1.7;
+    line-height: 1.8;
     padding-left: 2px;
+    max-width: 72ch;
 }
 
 /* Audio analysis indicators (emotion, prosody, mismatch, interaction) */
@@ -666,17 +891,23 @@ body {
 
 .prosody-indicator {
     display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    width: 18px;
-    height: 18px;
-    border-radius: 50%;
-    background: var(--bg-active);
+    align-items: end;
+    gap: 1.5px;
+    height: 14px;
     color: var(--text-muted);
-    font-size: 11px;
     cursor: help;
-    border: 1px solid var(--border);
 }
+
+.prosody-indicator i {
+    display: block;
+    width: 2px;
+    background: currentColor;
+    border-radius: 1px;
+}
+
+.prosody-indicator i:nth-child(1) { height: 50%; }
+.prosody-indicator i:nth-child(2) { height: 80%; }
+.prosody-indicator i:nth-child(3) { height: 35%; }
 
 .mismatch-marker {
     display: inline-flex;
