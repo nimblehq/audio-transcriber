@@ -95,4 +95,13 @@ data/meetings/{id}/    # Per-meeting: metadata.json, transcript.json, audio file
 - **Merging:** squash-merge only. Merge commits and rebase-merges are disabled at the repo level. Linear history is enforced.
 - **CI gate:** `Lint & Format` and `Test & Coverage` must pass before a PR is mergeable. Approvals are not required (solo project; CI is the gate).
 - **Hotfixes:** use the same flow — short-lived branch off `main`, PR, squash-merge. There is no special hotfix process.
-- **Releases:** tag a commit on `main` with bare semver (e.g., `1.2.0`). No `v` prefix, no release branch. Update `CHANGELOG.md` in the same PR that introduces the release-worthy change, or in a dedicated release PR.
+- **Releases:** automated via [`semantic-release`](https://github.com/semantic-release/semantic-release). Every push to `main` runs `.github/workflows/release.yml`, which inspects PRs merged since the last tag and computes the next version from PR labels:
+  - `breaking` → major
+  - `feature` → minor
+  - `bug` → patch
+  - any other label (or no label) → no release contribution
+  The PR title becomes the release-note entry. When a PR carries multiple release-triggering labels (e.g., `breaking` + `feature`), the highest bump wins: major > minor > patch. Tags use bare semver (e.g., `1.3.0`), with no `v` prefix and no release branch. `CHANGELOG.md` continues to be maintained by hand for now; the auto-generated GitHub Release notes are an additional artifact, not a replacement.
+- **PR labels are the release signal — issue labels are not.** Only PR labels affect releases. When opening a PR, pick the label based on the release bump you want, independent of the linked issue's label (they will often match, but don't have to). `.github/workflows/auto-label.yml` applies the right label automatically for branches following `feature/`, `fix/`, `chore/`, `docs/` (and a few synonyms — see the workflow); PRs from arbitrary branch names need a manual label before merge.
+- **`breaking` label:** there's no branch prefix for breaking changes. Apply the `breaking` label manually when a PR contains them. Run `scripts/setup-release-labels.sh` once per fresh clone to ensure the label exists.
+- **Previewing the next release locally:** `npm ci && GITHUB_TOKEN=$(gh auth token) npx semantic-release --dry-run --no-ci` from a fresh checkout of `main`. The dry-run does not push tags or create releases.
+- **`GITHUB_TOKEN` recursion-guard caveat:** the release workflow uses the default `GITHUB_TOKEN`. Per GitHub Actions' default-token recursion guard, the resulting tag and release will **not** trigger other workflows. If future automation needs to react to a new release, switch to a PAT (`GH_TOKEN` secret) and update `release.yml`.

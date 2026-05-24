@@ -1,0 +1,65 @@
+# Auto-applies a label to each new PR based on its branch prefix.
+# Mirrored from nimblehq/argus@ee64921dd692a2159da4487007d23ff26ead61bb — keep
+# in sync when argus updates. Note: argus uses a "type : *" label namespace;
+# this repo uses GitHub-default labels (feature, bug, chore, documentation),
+# so the target label names here intentionally differ from argus.
+
+name: Auto Label PR
+
+on:
+  pull_request:
+    types: [opened]
+
+jobs:
+  label:
+    name: Label by Branch
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: write
+    steps:
+      - uses: actions/github-script@v9
+        with:
+          script: |
+            const branch = context.payload.pull_request.head.ref;
+            const prNumber = context.payload.pull_request.number;
+
+            // Map branch prefix to existing repo label.
+            // Branch-prefix vocabulary is intentionally broad; multiple
+            // prefixes can map to the same label.
+            const prefixMap = {
+              'feature/': 'feature',
+              'feat/': 'feature',
+              'story/': 'feature',
+              'enhancement/': 'feature',
+              'fix/': 'bug',
+              'bugfix/': 'bug',
+              'hotfix/': 'bug',
+              'bug/': 'bug',
+              'chore/': 'chore',
+              'refactor/': 'chore',
+              'test/': 'chore',
+              'ci/': 'chore',
+              'docs/': 'documentation',
+            };
+
+            let label = null;
+            for (const [prefix, labelName] of Object.entries(prefixMap)) {
+              if (branch.startsWith(prefix)) {
+                label = labelName;
+                break;
+              }
+            }
+
+            if (!label) {
+              console.log(`No matching prefix for branch: ${branch}`);
+              return;
+            }
+
+            await github.rest.issues.addLabels({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: prNumber,
+              labels: [label],
+            });
+
+            console.log(`Added label "${label}" to PR #${prNumber}`);
