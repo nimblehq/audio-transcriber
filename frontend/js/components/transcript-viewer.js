@@ -478,6 +478,7 @@ function renderPlainTextTab(container) {
     const plainText = lines.join('\n');
 
     container.innerHTML = `
+        ${renderUnnamedSpeakersWarning()}
         <div class="plaintext-view">
             <div class="plaintext-actions">
                 <button class="btn btn-primary" onclick="copyPlainText()">Copy to clipboard</button>

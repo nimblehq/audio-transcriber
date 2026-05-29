@@ -1239,8 +1239,8 @@ body {
     color: var(--text-muted);
 }
 
-/* Analysis */
-.analysis-warning {
+/* Unnamed-speakers warning (shared by Plain Text + Analysis tabs) */
+.unnamed-speakers-warning {
     display: flex;
     align-items: flex-start;
     gap: 12px;
@@ -1255,24 +1255,24 @@ body {
     line-height: 1.5;
 }
 
-.analysis-warning-icon {
+.unnamed-speakers-warning-icon {
     flex: 0 0 auto;
     font-size: 20px;
     line-height: 1.2;
     color: var(--warning);
 }
 
-.analysis-warning-body {
+.unnamed-speakers-warning-body {
     flex: 1 1 auto;
 }
 
-.analysis-warning-body strong {
+.unnamed-speakers-warning-body strong {
     display: block;
     margin-bottom: 2px;
     color: var(--text);
 }
 
-.analysis-warning code {
+.unnamed-speakers-warning code {
     background: var(--bg);
     padding: 1px 6px;
     border-radius: 3px;

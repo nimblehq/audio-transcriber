@@ -97,36 +97,6 @@ function renderPromptContent(container, prompt) {
     container.dataset.rawPrompt = prompt;
 }
 
-// Reads `window._speakerEditorState`, which is populated by
-// `renderSegments()` in transcript-viewer.js when the meeting loads.
-// If transcript-viewer.js changes that contract, update this read site.
-function getUnnamedSpeakersInfo() {
-    const state = window._speakerEditorState;
-    if (!state || !state.speakerIds || !state.speakers) return null;
-    const total = state.speakerIds.length;
-    const unnamed = state.speakerIds.filter(id =>
-        isUnidentifiedSpeaker(state.speakers[id] || id)
-    ).length;
-    return { unnamed, total };
-}
-
-function renderUnnamedSpeakersWarning() {
-    const info = getUnnamedSpeakersInfo();
-    if (!info || info.unnamed === 0) return '';
-    const { unnamed, total } = info;
-    const verb = unnamed === 1 ? 'is' : 'are';
-    const noun = unnamed === 1 ? 'speaker' : 'speakers';
-    return `
-        <div class="analysis-warning" role="alert">
-            <span class="analysis-warning-icon" aria-hidden="true">⚠</span>
-            <div class="analysis-warning-body">
-                <strong>${unnamed} of ${total} ${noun} ${verb} still unnamed.</strong>
-                Rename them on the Transcript tab — the generated prompt will use raw labels like <code>SPEAKER_00</code> until you do.
-            </div>
-        </div>
-    `;
-}
-
 function copyPrompt() {
     const container = document.getElementById('analysis-tab');
     const raw = container.dataset.rawPrompt || '';
