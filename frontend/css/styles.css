@@ -1240,6 +1240,17 @@ body {
 }
 
 /* Analysis */
+.analysis-warning {
+    margin-bottom: 16px;
+}
+
+.analysis-warning code {
+    background: var(--bg);
+    padding: 1px 6px;
+    border-radius: 3px;
+    font-size: 12px;
+}
+
 .analysis-generator {
     text-align: center;
     padding: 40px 20px;

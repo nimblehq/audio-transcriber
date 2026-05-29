@@ -1,6 +1,7 @@
 function renderAnalysisTab(container, meetingId, meetingType) {
     if (meetingId) container.dataset.meetingId = meetingId;
     container.innerHTML = `
+        ${renderUnnamedSpeakersWarning()}
         <div class="analysis-generator">
             <p>Select a template to generate a prompt you can paste into any LLM for analysis.</p>
             <div class="form-group">
@@ -84,6 +85,7 @@ function buildPlainTextTranscript() {
 
 function renderPromptContent(container, prompt) {
     container.innerHTML = `
+        ${renderUnnamedSpeakersWarning()}
         <div class="analysis-content">
             <div class="analysis-actions">
                 <button class="btn btn-primary" onclick="copyPrompt()">Copy to clipboard</button>
@@ -93,6 +95,32 @@ function renderPromptContent(container, prompt) {
         </div>
     `;
     container.dataset.rawPrompt = prompt;
+}
+
+// Reads `window._speakerEditorState`, which is populated by
+// `renderSegments()` in transcript-viewer.js when the meeting loads.
+// If transcript-viewer.js changes that contract, update this read site.
+function getUnnamedSpeakersInfo() {
+    const state = window._speakerEditorState;
+    if (!state || !state.speakerIds || !state.speakers) return null;
+    const total = state.speakerIds.length;
+    const unnamed = state.speakerIds.filter(id =>
+        isUnidentifiedSpeaker(state.speakers[id] || id)
+    ).length;
+    return { unnamed, total };
+}
+
+function renderUnnamedSpeakersWarning() {
+    const info = getUnnamedSpeakersInfo();
+    if (!info || info.unnamed === 0) return '';
+    const { unnamed, total } = info;
+    const verb = unnamed === 1 ? 'is' : 'are';
+    const noun = unnamed === 1 ? 'speaker' : 'speakers';
+    return `
+        <div class="overview-notice analysis-warning" role="status">
+            ${unnamed} of ${total} ${noun} ${verb} still unnamed. Rename them on the Transcript tab — the generated prompt will use raw labels like <code>SPEAKER_00</code> until you do.
+        </div>
+    `;
 }
 
 function copyPrompt() {
