@@ -1239,7 +1239,47 @@ body {
     color: var(--text-muted);
 }
 
-/* Analysis */
+/* Unnamed-speakers warning (shared by Plain Text + Analysis tabs) */
+.unnamed-speakers-warning {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    margin-bottom: 20px;
+    padding: 14px 18px;
+    background: color-mix(in srgb, var(--warning) 18%, var(--bg-surface));
+    border: 1px solid var(--warning);
+    border-left: 4px solid var(--warning);
+    border-radius: var(--radius-sm);
+    color: var(--text);
+    font-size: 14px;
+    line-height: 1.5;
+}
+
+.unnamed-speakers-warning-icon {
+    flex: 0 0 auto;
+    font-size: 20px;
+    line-height: 1.2;
+    color: var(--warning);
+}
+
+.unnamed-speakers-warning-body {
+    flex: 1 1 auto;
+}
+
+.unnamed-speakers-warning-body strong {
+    display: block;
+    margin-bottom: 2px;
+    color: var(--text);
+}
+
+.unnamed-speakers-warning code {
+    background: var(--bg);
+    padding: 1px 6px;
+    border-radius: 3px;
+    font-size: 12px;
+    border: 1px solid var(--border);
+}
+
 .analysis-generator {
     text-align: center;
     padding: 40px 20px;

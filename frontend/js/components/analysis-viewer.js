@@ -1,6 +1,7 @@
 function renderAnalysisTab(container, meetingId, meetingType) {
     if (meetingId) container.dataset.meetingId = meetingId;
     container.innerHTML = `
+        ${renderUnnamedSpeakersWarning()}
         <div class="analysis-generator">
             <p>Select a template to generate a prompt you can paste into any LLM for analysis.</p>
             <div class="form-group">
@@ -84,6 +85,7 @@ function buildPlainTextTranscript() {
 
 function renderPromptContent(container, prompt) {
     container.innerHTML = `
+        ${renderUnnamedSpeakersWarning()}
         <div class="analysis-content">
             <div class="analysis-actions">
                 <button class="btn btn-primary" onclick="copyPrompt()">Copy to clipboard</button>
