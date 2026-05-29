@@ -1241,7 +1241,35 @@ body {
 
 /* Analysis */
 .analysis-warning {
-    margin-bottom: 16px;
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    margin-bottom: 20px;
+    padding: 14px 18px;
+    background: color-mix(in srgb, var(--warning) 18%, var(--bg-surface));
+    border: 1px solid var(--warning);
+    border-left: 4px solid var(--warning);
+    border-radius: var(--radius-sm);
+    color: var(--text);
+    font-size: 14px;
+    line-height: 1.5;
+}
+
+.analysis-warning-icon {
+    flex: 0 0 auto;
+    font-size: 20px;
+    line-height: 1.2;
+    color: var(--warning);
+}
+
+.analysis-warning-body {
+    flex: 1 1 auto;
+}
+
+.analysis-warning-body strong {
+    display: block;
+    margin-bottom: 2px;
+    color: var(--text);
 }
 
 .analysis-warning code {
@@ -1249,6 +1277,7 @@ body {
     padding: 1px 6px;
     border-radius: 3px;
     font-size: 12px;
+    border: 1px solid var(--border);
 }
 
 .analysis-generator {

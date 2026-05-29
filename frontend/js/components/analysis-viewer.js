@@ -117,8 +117,12 @@ function renderUnnamedSpeakersWarning() {
     const verb = unnamed === 1 ? 'is' : 'are';
     const noun = unnamed === 1 ? 'speaker' : 'speakers';
     return `
-        <div class="overview-notice analysis-warning" role="status">
-            ${unnamed} of ${total} ${noun} ${verb} still unnamed. Rename them on the Transcript tab — the generated prompt will use raw labels like <code>SPEAKER_00</code> until you do.
+        <div class="analysis-warning" role="alert">
+            <span class="analysis-warning-icon" aria-hidden="true">⚠</span>
+            <div class="analysis-warning-body">
+                <strong>${unnamed} of ${total} ${noun} ${verb} still unnamed.</strong>
+                Rename them on the Transcript tab — the generated prompt will use raw labels like <code>SPEAKER_00</code> until you do.
+            </div>
         </div>
     `;
 }
