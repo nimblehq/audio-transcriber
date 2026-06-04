@@ -101,6 +101,61 @@ Open http://localhost:8000 in your browser. You can now upload audio/video files
 
 > **Use `localhost`, not `0.0.0.0`.** Some browser features like desktop notifications require a secure context. Chrome treats `localhost` as secure, but not `0.0.0.0`.
 
+## Double-click launcher (macOS)
+
+Prefer not to touch the Terminal every time? Build a small macOS app that starts the
+server and opens your browser with a double-click. This is a convenience wrapper around
+the same `make setup` / `make run` steps above -- you still need the one-time setup
+(Python 3.12, ffmpeg, `make setup`, and your `HF_TOKEN`) done first.
+
+### Step 1: Build the app (one time)
+
+```bash
+make app
+```
+
+This produces `dist/Meeting Transcriber.app`. No prebuilt app is committed to the repo --
+the `dist/` folder is gitignored, so you build it once locally. The build bakes in the
+current location of this repo, so if you ever move the project folder, just run `make app`
+again.
+
+### Step 2: Install and first launch
+
+1. Drag `dist/Meeting Transcriber.app` to `/Applications` or your Dock.
+2. **First launch only:** right-click the app and choose **Open**, then confirm. The app is
+   not code-signed, so a plain double-click is blocked by Gatekeeper the first time.
+   (Alternatively: `xattr -dr com.apple.quarantine "/Applications/Meeting Transcriber.app"`.)
+
+### What it does
+
+Each double-click:
+
+1. Runs `git pull --ff-only` to grab the latest version (skipped automatically when you're
+   offline or this isn't a git checkout -- so code may change between launches).
+2. Refreshes Python dependencies (`pip install -r requirements.txt`).
+3. Starts the server in the background and opens http://localhost:8000.
+
+The app stays running with an icon in your Dock. **Quit it (Cmd-Q) to stop the server.**
+Quitting cancels any transcription still in progress -- jobs aren't resumable, so let them
+finish before you quit.
+
+Startup is near-instant on the warm path; the first launch after a dependency change is
+slower while `pip` installs.
+
+### Troubleshooting
+
+Anything that goes wrong (a rejected `git pull`, a dependency error, port 8000 already in
+use, the server failing to start) shows a dialog pointing at the log:
+
+```
+~/Library/Logs/MeetingTranscriber.log
+```
+
+> **Quitting at logout is best-effort.** Explicit Quit (Cmd-Q / Dock → Quit) reliably stops
+> the server. At logout or shutdown macOS may force-quit the app before it can stop the
+> server; if that happens, the next launch detects the running server and just reopens the
+> browser.
+
 ## Web App
 
 The web app lets you upload recordings, track transcription progress, view transcripts synchronized with audio playback, and generate LLM-ready prompts for analysis.
