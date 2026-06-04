@@ -94,4 +94,11 @@ Every failure path routes through `fail()`, which logs and shows an `osascript d
 
 ## Deviations from Plan
 
-_Populated after implementation._
+- None of substance — the implementation followed the plan. One refinement from the
+  Architect code review: `build-app.sh` now compiles inside a `mktemp -d` temp directory
+  (trapped for cleanup) instead of a suffixed temp file, to avoid leaving an orphaned base
+  temp file on each build.
+- AC2 (~5s) and AC3 (quit terminates uvicorn) were verified for logical correctness and
+  the `.app` build was exercised on macOS, but their wall-clock/runtime confirmation
+  requires a fully configured environment (Python 3.12 venv + ML deps + `HF_TOKEN`) and a
+  manual macOS smoke test, which remains the real gate for those two ACs.
