@@ -31,8 +31,9 @@ ICON="$REPO_ROOT/assets/MeetingTranscriber.icns"
 mkdir -p "$DIST"
 rm -rf "$APP"
 
-tmp="$(mktemp -t launcher.XXXXXX).applescript"
-trap 'rm -f "$tmp"' EXIT
+tmpdir="$(mktemp -d -t meeting-transcriber-build.XXXXXX)"
+trap 'rm -rf "$tmpdir"' EXIT
+tmp="$tmpdir/launcher.applescript"
 # Escape characters special to sed's replacement (&, |, \) in the repo path.
 escaped_root="$(printf '%s' "$REPO_ROOT" | sed -e 's/[&|\\]/\\&/g')"
 sed "s|__REPO_ROOT__|$escaped_root|g" "$SRC" >"$tmp"
