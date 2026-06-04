@@ -1,4 +1,4 @@
-.PHONY: setup run clean
+.PHONY: setup run app clean
 
 setup:
 	python3.12 -m venv .venv
@@ -10,6 +10,9 @@ setup:
 
 run:
 	. .venv/bin/activate && python run.py
+
+app:
+	./scripts/build-app.sh
 
 clean:
 	rm -rf .venv data/meetings/*
