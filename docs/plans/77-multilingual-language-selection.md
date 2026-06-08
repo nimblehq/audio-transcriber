@@ -81,4 +81,4 @@ Retry reuses stored `metadata.expected_languages`; no change needed.
 
 ## Deviations from Plan
 
-_Populated after implementation._
+- Rather than an inline `if/else` in `_run_transcription`, both pipelines were extracted into module-level helpers `_run_single_language_transcription` and `_run_multilingual_transcription`, and `ALIGNMENT_LANGUAGES`/`CUSTOM_ALIGN_MODELS` were promoted from function-local to module constants. This keeps the routing block small and made the single-language path a behavior-preserving extraction (verified against `origin/main` in code review). No functional change.
