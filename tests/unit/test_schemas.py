@@ -93,7 +93,16 @@ class TestTranscriptSegment:
             "end": 2.0,
             "speaker": "SPEAKER_01",
             "text": "Hi",
+            "language": None,
         }
+
+    def test_language_defaults_to_none(self):
+        seg = TranscriptSegment(id="seg-1", start=0.0, end=1.0, speaker="SPEAKER_00", text="Hello")
+        assert seg.language is None
+
+    def test_language_can_be_set(self):
+        seg = TranscriptSegment(id="seg-1", start=0.0, end=1.0, speaker="SPEAKER_00", text="สวัสดี", language="th")
+        assert seg.language == "th"
 
     def test_missing_required_field(self):
         with pytest.raises(ValidationError):
@@ -125,7 +134,17 @@ class TestMeetingMetadata:
         assert m.job_id is None
         assert m.speakers == {}
         assert m.error is None
+        assert m.expected_languages == []
         assert isinstance(m.created_at, datetime)
+
+    def test_expected_languages(self):
+        m = MeetingMetadata(id="m1", title="Test", expected_languages=["en", "th"])
+        assert m.expected_languages == ["en", "th"]
+
+    def test_expected_languages_roundtrip(self):
+        m = MeetingMetadata(id="m1", title="Test", expected_languages=["en", "th"])
+        m2 = MeetingMetadata(**m.model_dump())
+        assert m2.expected_languages == ["en", "th"]
 
     def test_full_creation(self):
         m = MeetingMetadata(
