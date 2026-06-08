@@ -28,6 +28,39 @@ router = APIRouter()
 
 ALLOWED_EXTENSIONS = {".mp3", ".mp4", ".m4a", ".wav", ".webm"}
 
+# Language codes the uploader can select. Used to reject unknown/garbage codes
+# from the multi-select before they reach the transcription pipeline.
+SUPPORTED_LANGUAGES = {
+    "en",
+    "fr",
+    "de",
+    "es",
+    "it",
+    "pt",
+    "nl",
+    "ja",
+    "zh",
+    "ko",
+    "ru",
+    "th",
+    "ar",
+    "hi",
+    "tr",
+    "pl",
+    "vi",
+    "id",
+}
+
+
+def _sanitize_languages(codes: list[str]) -> list[str]:
+    """Normalize, drop unknown codes, and de-duplicate while preserving order."""
+    cleaned: list[str] = []
+    for code in codes:
+        normalized = code.strip().lower()
+        if normalized in SUPPORTED_LANGUAGES and normalized not in cleaned:
+            cleaned.append(normalized)
+    return cleaned
+
 
 def _load_metadata(meeting_id: str) -> MeetingMetadata:
     meta_path = MEETINGS_DIR / meeting_id / "metadata.json"
@@ -80,7 +113,7 @@ async def create_meeting(
     file: UploadFile = File(...),
     title: str = Form(""),
     meeting_type: str = Form("other"),
-    language: str = Form("auto"),
+    expected_languages: list[str] = Form(default=[]),
     num_speakers: str = Form("auto"),
     preprocess_audio: str = Form("true"),
     audio_analysis_enabled: str = Form("false"),
@@ -118,7 +151,11 @@ async def create_meeting(
     except ValueError:
         mt = MeetingType.OTHER
 
-    effective_language = language.strip() if language.strip() != "auto" else "auto"
+    # Expected-language set drives single- vs multilingual routing (BR-2, BR-3).
+    # Derive the single-language input: 0 selected → auto-detect; exactly 1 → that
+    # language; 2+ → multilingual path (single-language input unused, kept as auto).
+    sanitized_languages = _sanitize_languages(expected_languages)
+    effective_language = sanitized_languages[0] if len(sanitized_languages) == 1 else "auto"
     effective_num_speakers = None
     if num_speakers.strip() != "auto":
         try:
@@ -135,6 +172,7 @@ async def create_meeting(
         type=mt,
         audio_filename=audio_filename,
         language=effective_language,
+        expected_languages=sanitized_languages,
         num_speakers=effective_num_speakers,
         preprocess_audio=effective_preprocess,
         audio_analysis_enabled=effective_audio_analysis,
