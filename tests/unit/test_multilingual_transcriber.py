@@ -181,6 +181,21 @@ class TestTranscribeMultilingual:
 
         assert [s["text"] for s in segments] == ["Real"]
 
+    def test_all_one_language_still_runs_per_chunk(self):
+        # EC-1: 2+ selected but audio is entirely one language → effectively monolingual
+        # transcript, yet detection still runs on every (long-enough) chunk (per-chunk cost).
+        chunks = [{"start": 0.0, "end": 5.0}, {"start": 5.0, "end": 10.0}]
+        pipeline = _build_pipeline(
+            detect_results=[[("en", 0.99), ("th", 0.01)], [("en", 0.98), ("th", 0.02)]],
+            transcribe_results=[[_FakeSegment(0.0, 4.0, "Hello")], [_FakeSegment(0.0, 4.0, "again")]],
+        )
+        with patch("backend.services.multilingual_transcriber._vad_chunks", return_value=chunks):
+            segments, dominant = transcribe_multilingual(self._audio(10), {"en", "th"}, pipeline)
+
+        assert dominant == "en"
+        assert {s["language"] for s in segments} == {"en"}  # effectively monolingual
+        assert pipeline.model.detect_language.call_count == 2  # per-chunk cost still incurred
+
     def test_no_chunks_returns_empty_with_deterministic_language(self):
         pipeline = _build_pipeline(detect_results=[], transcribe_results=[])
         with patch("backend.services.multilingual_transcriber._vad_chunks", return_value=[]):
