@@ -6,7 +6,7 @@ import wave
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
-from backend.schemas import AudioAnalysisStatus, JobStatus, MeetingStatus
+from backend.schemas import AudioAnalysis, AudioAnalysisStatus, JobStatus, MeetingStatus
 from backend.services.job_queue import JobQueue
 from backend.services.transcriber import _get_device, _is_cancelled, _run_audio_analysis
 
@@ -27,6 +27,8 @@ def _create_meeting_on_disk(
     audio_filename: str = "audio.wav",
     language: str = "auto",
     num_speakers: int | None = None,
+    expected_languages: list[str] | None = None,
+    audio_analysis_enabled: bool = False,
 ) -> Path:
     """Create a meeting directory with metadata and audio file."""
     meeting_dir = meetings_dir / meeting_id
@@ -39,8 +41,10 @@ def _create_meeting_on_disk(
         "status": status,
         "audio_filename": audio_filename,
         "language": language,
+        "expected_languages": expected_languages or [],
         "num_speakers": num_speakers,
         "preprocess_audio": False,
+        "audio_analysis_enabled": audio_analysis_enabled,
         "created_at": "2026-03-14T00:00:00",
         "speakers": {},
     }
@@ -696,3 +700,175 @@ class TestRunAudioAnalysis:
         assert len(result.segment_interactions) == 1
         assert result.segment_interactions[0].followed_by_interruption is True
         assert result.dominant_speaker_limitation is True
+
+
+class TestTranscriptionRouting:
+    """Routing between single-language and multilingual pipelines (BR-2, BR-3, EC-7)."""
+
+    def _mocks(self):
+        mock_whisperx = MagicMock()
+        mock_whisperx.load_audio.return_value = MagicMock()
+        mock_model = MagicMock()
+        mock_model.transcribe.return_value = {
+            "segments": [{"start": 0.0, "end": 1.5, "text": " Hello.", "speaker": "SPEAKER_00"}],
+            "language": "en",
+        }
+        mock_whisperx.load_model.return_value = mock_model
+        mock_whisperx.load_align_model.return_value = (MagicMock(), MagicMock())
+        mock_whisperx.align.return_value = {
+            "segments": [{"start": 0.0, "end": 1.5, "text": " Hello.", "speaker": "SPEAKER_00"}],
+        }
+        mock_torch = MagicMock()
+        mock_torch.cuda.is_available.return_value = False
+        mock_diarize_cls = MagicMock()
+        mock_assign = MagicMock(
+            return_value={"segments": [{"start": 0.0, "end": 1.5, "text": " Hello.", "speaker": "SPEAKER_00"}]}
+        )
+        return mock_whisperx, mock_torch, mock_diarize_cls, mock_assign
+
+    @staticmethod
+    def _sys_modules(mock_whisperx, mock_torch, mock_diarize_cls, mock_assign):
+        return {
+            "whisperx": mock_whisperx,
+            "torch": mock_torch,
+            "whisperx.diarize": MagicMock(
+                DiarizationPipeline=mock_diarize_cls,
+                assign_word_speakers=mock_assign,
+            ),
+            "functools": __import__("functools"),
+            "warnings": __import__("warnings"),
+        }
+
+    @patch("backend.services.transcriber.WHISPER_BATCH_SIZE", 16)
+    @patch("backend.services.transcriber.WHISPER_MODEL", "large-v3")
+    @patch("backend.services.transcriber.WHISPER_DEVICE", "cpu")
+    @patch("backend.services.transcriber.HF_TOKEN", "")
+    def test_single_language_runs_unchanged_single_path(self, tmp_path: Path):
+        """Exactly one expected language → existing single path, forcing that language (EC-7, AC2)."""
+        mw, mt, mdc, ma = self._mocks()
+        queue = JobQueue()
+        meetings_dir = tmp_path / "meetings"
+        _create_meeting_on_disk(meetings_dir, language="en", expected_languages=["en"])
+        job = queue.create_job("test-meeting")
+        ml = MagicMock()
+
+        with (
+            patch("backend.services.transcriber.MEETINGS_DIR", meetings_dir),
+            patch("backend.services.transcriber.job_queue", queue),
+            patch("backend.services.transcriber.transcribe_multilingual", ml),
+            patch.dict("sys.modules", self._sys_modules(mw, mt, mdc, ma)),
+        ):
+            from backend.services.transcriber import _run_transcription
+
+            _run_transcription("test-meeting", job.id)
+
+        ml.assert_not_called()
+        # Single path forces the selected language into load_model AND transcribe.
+        assert mw.load_model.call_args.kwargs["language"] == "en"
+        assert mw.load_model.return_value.transcribe.call_args.kwargs["language"] == "en"
+        # Alignment still runs for the single path.
+        assert mw.align.called
+
+    @patch("backend.services.transcriber.WHISPER_BATCH_SIZE", 16)
+    @patch("backend.services.transcriber.WHISPER_MODEL", "large-v3")
+    @patch("backend.services.transcriber.WHISPER_DEVICE", "cpu")
+    @patch("backend.services.transcriber.HF_TOKEN", "")
+    def test_no_expected_languages_auto_detects_single(self, tmp_path: Path):
+        """Zero expected languages → single path with auto-detect (language=None)."""
+        mw, mt, mdc, ma = self._mocks()
+        queue = JobQueue()
+        meetings_dir = tmp_path / "meetings"
+        _create_meeting_on_disk(meetings_dir, language="auto", expected_languages=[])
+        job = queue.create_job("test-meeting")
+        ml = MagicMock()
+
+        with (
+            patch("backend.services.transcriber.MEETINGS_DIR", meetings_dir),
+            patch("backend.services.transcriber.job_queue", queue),
+            patch("backend.services.transcriber.transcribe_multilingual", ml),
+            patch.dict("sys.modules", self._sys_modules(mw, mt, mdc, ma)),
+        ):
+            from backend.services.transcriber import _run_transcription
+
+            _run_transcription("test-meeting", job.id)
+
+        ml.assert_not_called()
+        assert mw.load_model.call_args.kwargs.get("language") is None
+        assert "language" not in mw.load_model.return_value.transcribe.call_args.kwargs
+
+    @patch("backend.services.transcriber.WHISPER_BATCH_SIZE", 16)
+    @patch("backend.services.transcriber.WHISPER_MODEL", "large-v3")
+    @patch("backend.services.transcriber.WHISPER_DEVICE", "cpu")
+    @patch("backend.services.transcriber.HF_TOKEN", "test-token")
+    def test_two_languages_run_multilingual_path(self, tmp_path: Path):
+        """Two+ expected languages → multilingual path, no align, no diarize, per-segment language."""
+        mw, mt, mdc, ma = self._mocks()
+        queue = JobQueue()
+        meetings_dir = tmp_path / "meetings"
+        meeting_dir = _create_meeting_on_disk(meetings_dir, language="auto", expected_languages=["en", "th"])
+        job = queue.create_job("test-meeting")
+        ml = MagicMock(
+            return_value=(
+                [
+                    {"start": 0.0, "end": 2.0, "text": "Hello", "language": "en"},
+                    {"start": 2.0, "end": 4.0, "text": "สวัสดี", "language": "th"},
+                ],
+                "en",
+            )
+        )
+
+        with (
+            patch("backend.services.transcriber.MEETINGS_DIR", meetings_dir),
+            patch("backend.services.transcriber.job_queue", queue),
+            patch("backend.services.transcriber.transcribe_multilingual", ml),
+            patch.dict("sys.modules", self._sys_modules(mw, mt, mdc, ma)),
+        ):
+            from backend.services.transcriber import _run_transcription
+
+            _run_transcription("test-meeting", job.id)
+
+        ml.assert_called_once()
+        # Multilingual loads the model without a fixed language.
+        assert "language" not in mw.load_model.call_args.kwargs
+        # No alignment and no diarization in this slice.
+        mw.align.assert_not_called()
+        mdc.assert_not_called()
+
+        transcript = json.loads((meeting_dir / "transcript.json").read_text())
+        assert [s["language"] for s in transcript["segments"]] == ["en", "th"]
+        assert all(s["speaker"] == "UNKNOWN" for s in transcript["segments"])
+        assert transcript["language"] == "en"  # dominant
+
+    @patch("backend.services.transcriber.WHISPER_BATCH_SIZE", 16)
+    @patch("backend.services.transcriber.WHISPER_MODEL", "large-v3")
+    @patch("backend.services.transcriber.WHISPER_DEVICE", "cpu")
+    @patch("backend.services.transcriber.HF_TOKEN", "test-token")
+    def test_multilingual_audio_analysis_gets_dominant_and_no_turns(self, tmp_path: Path):
+        """Audio analysis on the multilingual path receives the dominant language and no diarize turns."""
+        mw, mt, mdc, ma = self._mocks()
+        queue = JobQueue()
+        meetings_dir = tmp_path / "meetings"
+        _create_meeting_on_disk(
+            meetings_dir, language="auto", expected_languages=["en", "th"], audio_analysis_enabled=True
+        )
+        job = queue.create_job("test-meeting")
+        ml = MagicMock(
+            return_value=([{"start": 0.0, "end": 2.0, "text": "Hello", "language": "en"}], "en"),
+        )
+        maa = MagicMock(return_value=AudioAnalysis(status=AudioAnalysisStatus.UNAVAILABLE))
+
+        with (
+            patch("backend.services.transcriber.MEETINGS_DIR", meetings_dir),
+            patch("backend.services.transcriber.job_queue", queue),
+            patch("backend.services.transcriber.transcribe_multilingual", ml),
+            patch("backend.services.transcriber._run_audio_analysis", maa),
+            patch.dict("sys.modules", self._sys_modules(mw, mt, mdc, ma)),
+        ):
+            from backend.services.transcriber import _run_transcription
+
+            _run_transcription("test-meeting", job.id)
+
+        maa.assert_called_once()
+        # detected_language is the 4th positional arg; diarize_turns is a kwarg.
+        assert maa.call_args.args[3] == "en"
+        assert maa.call_args.kwargs["diarize_turns"] is None

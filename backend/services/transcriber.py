@@ -15,9 +15,48 @@ from backend.schemas import (
     TranscriptSegment,
 )
 from backend.services.job_queue import job_queue
+from backend.services.multilingual_transcriber import transcribe_multilingual
 from config import HF_TOKEN, MEETINGS_DIR, WHISPER_BATCH_SIZE, WHISPER_DEVICE, WHISPER_MODEL
 
 logger = logging.getLogger(__name__)
+
+# Languages with a wav2vec2 alignment model available in WhisperX (single-language path).
+ALIGNMENT_LANGUAGES = {
+    "en",
+    "fr",
+    "de",
+    "es",
+    "it",
+    "ja",
+    "zh",
+    "nl",
+    "uk",
+    "pt",
+    "ar",
+    "cs",
+    "ru",
+    "pl",
+    "hu",
+    "fi",
+    "fa",
+    "el",
+    "tr",
+    "da",
+    "he",
+    "vi",
+    "ko",
+    "ur",
+    "te",
+    "hi",
+    "ta",
+    "id",
+    "ms",
+    "th",
+}
+
+CUSTOM_ALIGN_MODELS = {
+    "th": "airesearch/wav2vec2-large-xlsr-53-th",
+}
 
 
 def _get_device() -> str:
@@ -178,6 +217,179 @@ def _run_audio_analysis(
     )
 
 
+def _run_single_language_transcription(
+    job_id: str,
+    audio,
+    metadata: MeetingMetadata,
+    device: str,
+    compute_type: str,
+    batch_size: int,
+) -> tuple[list[dict], str, list[tuple[float, float, str]] | None]:
+    """Existing single-language pipeline: transcribe -> align -> diarize -> build.
+
+    Unchanged behavior for the 0/1-expected-language case (BR-2, EC-7).
+    Returns (segments, detected_language, diarize_turns).
+    """
+    import torch
+    import whisperx
+    from whisperx.diarize import DiarizationPipeline, assign_word_speakers
+
+    # Transcribe
+    job_queue.update_job(job_id, stage="transcribing", progress=20)
+    lang = metadata.language if metadata.language and metadata.language != "auto" else None
+    model = whisperx.load_model(WHISPER_MODEL, device, compute_type=compute_type, language=lang)
+
+    # Estimate audio duration for time-based progress during transcription
+    audio_duration_sec = len(audio) / 16000  # whisperx uses 16kHz sample rate
+    # Rough estimate: ~10s of audio per second on CPU, ~60s on GPU
+    est_transcribe_sec = max(audio_duration_sec / (60 if device == "cuda" else 10), 5)
+
+    transcribe_opts = {"batch_size": batch_size}
+    if metadata.language and metadata.language != "auto":
+        transcribe_opts["language"] = metadata.language
+
+    # Smooth progress updates during transcription (20% -> 49%)
+    _transcribe_done = threading.Event()
+
+    def _update_transcribe_progress():
+        start = time.monotonic()
+        while not _transcribe_done.wait(timeout=2):
+            elapsed = time.monotonic() - start
+            # Asymptotic curve: approaches 49% but never reaches it
+            fraction = elapsed / (elapsed + est_transcribe_sec)
+            pct = 20 + int(fraction * 29)
+            job_queue.update_job(job_id, stage="transcribing", progress=min(pct, 49))
+
+    progress_thread = threading.Thread(target=_update_transcribe_progress, daemon=True)
+    progress_thread.start()
+
+    try:
+        result = model.transcribe(audio, **transcribe_opts)
+    finally:
+        _transcribe_done.set()
+        progress_thread.join(timeout=5)
+
+    if not result or not result.get("segments"):
+        raise RuntimeError("No speech detected in audio")
+
+    detected_language = result.get("language", "unknown")
+
+    del model
+    if device == "cuda":
+        torch.cuda.empty_cache()
+
+    # Align
+    if detected_language in ALIGNMENT_LANGUAGES:
+        job_queue.update_job(job_id, stage="aligning", progress=50)
+        align_model_name = CUSTOM_ALIGN_MODELS.get(detected_language)
+        model_a, align_metadata = whisperx.load_align_model(
+            language_code=detected_language, device=device, model_name=align_model_name
+        )
+        result = whisperx.align(
+            result["segments"],
+            model_a,
+            align_metadata,
+            audio,
+            device,
+            return_char_alignments=False,
+        )
+        del model_a
+        if device == "cuda":
+            torch.cuda.empty_cache()
+
+    # Diarize
+    diarize_turns: list[tuple[float, float, str]] | None = None
+    if HF_TOKEN:
+        job_queue.update_job(job_id, stage="diarizing", progress=70)
+        diarize_model = DiarizationPipeline(
+            model_name="pyannote/speaker-diarization-3.1",
+            token=HF_TOKEN,
+            device=device,
+        )
+        diarize_kwargs = {}
+        if metadata.num_speakers:
+            diarize_kwargs["num_speakers"] = metadata.num_speakers
+        diarize_segments = diarize_model(audio, **diarize_kwargs)
+        # Capture raw PyAnnote turns (with overlaps) before assign_word_speakers
+        # collapses them into per-speaker non-overlapping transcript segments.
+        # Required by interaction analysis (BR-3.1).
+        try:
+            diarize_turns = [
+                (float(row["start"]), float(row["end"]), str(row["speaker"])) for _, row in diarize_segments.iterrows()
+            ]
+        except Exception:
+            logger.exception("Failed to capture raw diarization turns; interaction analysis will be unavailable")
+            diarize_turns = None
+        result = assign_word_speakers(diarize_segments, result)
+
+    # Build transcript segments
+    segments = []
+    for i, seg in enumerate(result["segments"]):
+        segments.append(
+            {
+                "id": f"seg_{i:04d}",
+                "start": round(seg["start"], 2),
+                "end": round(seg["end"], 2),
+                "speaker": seg.get("speaker", "UNKNOWN"),
+                "text": seg["text"].strip(),
+            }
+        )
+
+    return segments, detected_language, diarize_turns
+
+
+def _run_multilingual_transcription(
+    job_id: str,
+    audio,
+    selected_languages: set[str],
+    device: str,
+    compute_type: str,
+) -> tuple[list[dict], str]:
+    """Per-chunk multilingual pipeline (BR-4 through BR-7).
+
+    Triggered for 2+ expected languages. Each VAD speech chunk is detected
+    (constrained to the selected set) and transcribed in its own language.
+
+    Timestamps stay at chunk level and speakers are left UNKNOWN — word-level
+    alignment and cross-language speaker assignment are a later slice (BR-8/BR-9),
+    so this path runs neither alignment nor diarization.
+    Returns (segments, detected_language) where detected_language is the dominant.
+    """
+    import torch
+    import whisperx
+
+    job_queue.update_job(job_id, stage="transcribing", progress=20)
+    # No fixed language: per-chunk detection/decode picks the language.
+    model = whisperx.load_model(WHISPER_MODEL, device, compute_type=compute_type)
+
+    def _progress(pct: int) -> None:
+        job_queue.update_job(job_id, stage="transcribing", progress=min(pct, 89))
+
+    ml_segments, detected_language = transcribe_multilingual(audio, selected_languages, model, progress_cb=_progress)
+
+    del model
+    if device == "cuda":
+        torch.cuda.empty_cache()
+
+    if not ml_segments:
+        raise RuntimeError("No speech detected in audio")
+
+    segments = []
+    for i, seg in enumerate(ml_segments):
+        segments.append(
+            {
+                "id": f"seg_{i:04d}",
+                "start": round(seg["start"], 2),
+                "end": round(seg["end"], 2),
+                "speaker": "UNKNOWN",
+                "text": seg["text"].strip(),
+                "language": seg["language"],
+            }
+        )
+
+    return segments, detected_language
+
+
 def _run_transcription(meeting_id: str, job_id: str):
     """Run transcription in a background thread."""
     meeting_dir = MEETINGS_DIR / meeting_id
@@ -220,7 +432,6 @@ def _run_transcription(meeting_id: str, job_id: str):
         torch.load = _patched_torch_load
 
         import whisperx
-        from whisperx.diarize import DiarizationPipeline, assign_word_speakers
 
         device = _get_device()
         compute_type = "float16" if device == "cuda" else "float32"
@@ -229,146 +440,20 @@ def _run_transcription(meeting_id: str, job_id: str):
         # Load audio
         audio = whisperx.load_audio(str(audio_path))
 
-        # Transcribe
-        job_queue.update_job(job_id, stage="transcribing", progress=20)
-        lang = metadata.language if metadata.language and metadata.language != "auto" else None
-        model = whisperx.load_model(WHISPER_MODEL, device, compute_type=compute_type, language=lang)
-
-        # Estimate audio duration for time-based progress during transcription
-        audio_duration_sec = len(audio) / 16000  # whisperx uses 16kHz sample rate
-        # Rough estimate: ~10s of audio per second on CPU, ~60s on GPU
-        est_transcribe_sec = max(audio_duration_sec / (60 if device == "cuda" else 10), 5)
-
-        transcribe_opts = {"batch_size": batch_size}
-        if metadata.language and metadata.language != "auto":
-            transcribe_opts["language"] = metadata.language
-
-        # Smooth progress updates during transcription (20% -> 49%)
-        _transcribe_done = threading.Event()
-
-        def _update_transcribe_progress():
-            start = time.monotonic()
-            while not _transcribe_done.wait(timeout=2):
-                elapsed = time.monotonic() - start
-                # Asymptotic curve: approaches 49% but never reaches it
-                fraction = elapsed / (elapsed + est_transcribe_sec)
-                pct = 20 + int(fraction * 29)
-                job_queue.update_job(job_id, stage="transcribing", progress=min(pct, 49))
-
-        progress_thread = threading.Thread(target=_update_transcribe_progress, daemon=True)
-        progress_thread.start()
-
-        try:
-            result = model.transcribe(audio, **transcribe_opts)
-        finally:
-            _transcribe_done.set()
-            progress_thread.join(timeout=5)
-
-        if not result or not result.get("segments"):
-            raise RuntimeError("No speech detected in audio")
-
-        detected_language = result.get("language", "unknown")
-
-        del model
-        if device == "cuda":
-            torch.cuda.empty_cache()
-
-        # Align
-        ALIGNMENT_LANGUAGES = {
-            "en",
-            "fr",
-            "de",
-            "es",
-            "it",
-            "ja",
-            "zh",
-            "nl",
-            "uk",
-            "pt",
-            "ar",
-            "cs",
-            "ru",
-            "pl",
-            "hu",
-            "fi",
-            "fa",
-            "el",
-            "tr",
-            "da",
-            "he",
-            "vi",
-            "ko",
-            "ur",
-            "te",
-            "hi",
-            "ta",
-            "id",
-            "ms",
-            "th",
-        }
-
-        CUSTOM_ALIGN_MODELS = {
-            "th": "airesearch/wav2vec2-large-xlsr-53-th",
-        }
-
-        if detected_language in ALIGNMENT_LANGUAGES:
-            job_queue.update_job(job_id, stage="aligning", progress=50)
-            align_model_name = CUSTOM_ALIGN_MODELS.get(detected_language)
-            model_a, align_metadata = whisperx.load_align_model(
-                language_code=detected_language, device=device, model_name=align_model_name
-            )
-            result = whisperx.align(
-                result["segments"],
-                model_a,
-                align_metadata,
-                audio,
-                device,
-                return_char_alignments=False,
-            )
-            del model_a
-            if device == "cuda":
-                torch.cuda.empty_cache()
-
-        # Diarize
+        # Route on the expected-language set (BR-2, BR-3): 0/1 languages use the
+        # existing single-language pipeline; 2+ trigger per-chunk multilingual
+        # detection and transcription.
         diarize_turns: list[tuple[float, float, str]] | None = None
-        if HF_TOKEN:
-            job_queue.update_job(job_id, stage="diarizing", progress=70)
-            diarize_model = DiarizationPipeline(
-                model_name="pyannote/speaker-diarization-3.1",
-                token=HF_TOKEN,
-                device=device,
+        if len(metadata.expected_languages) >= 2:
+            segments, detected_language = _run_multilingual_transcription(
+                job_id, audio, set(metadata.expected_languages), device, compute_type
             )
-            diarize_kwargs = {}
-            if metadata.num_speakers:
-                diarize_kwargs["num_speakers"] = metadata.num_speakers
-            diarize_segments = diarize_model(audio, **diarize_kwargs)
-            # Capture raw PyAnnote turns (with overlaps) before assign_word_speakers
-            # collapses them into per-speaker non-overlapping transcript segments.
-            # Required by interaction analysis (BR-3.1).
-            try:
-                diarize_turns = [
-                    (float(row["start"]), float(row["end"]), str(row["speaker"]))
-                    for _, row in diarize_segments.iterrows()
-                ]
-            except Exception:
-                logger.exception("Failed to capture raw diarization turns; interaction analysis will be unavailable")
-                diarize_turns = None
-            result = assign_word_speakers(diarize_segments, result)
+        else:
+            segments, detected_language, diarize_turns = _run_single_language_transcription(
+                job_id, audio, metadata, device, compute_type, batch_size
+            )
 
         job_queue.update_job(job_id, progress=90, stage="saving")
-
-        # Build transcript
-        segments = []
-        for i, seg in enumerate(result["segments"]):
-            segments.append(
-                {
-                    "id": f"seg_{i:04d}",
-                    "start": round(seg["start"], 2),
-                    "end": round(seg["end"], 2),
-                    "speaker": seg.get("speaker", "UNKNOWN"),
-                    "text": seg["text"].strip(),
-                }
-            )
 
         transcript = {
             "segments": segments,
