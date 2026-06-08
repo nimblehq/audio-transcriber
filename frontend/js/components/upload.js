@@ -31,35 +31,33 @@ function renderUpload(container) {
                     <option value="other" selected>Other</option>
                 </select>
             </div>
-            <div class="form-row">
-                <div class="form-group">
-                    <label for="language-select">Language</label>
-                    <select id="language-select">
-                        <option value="auto" selected>Auto-detect</option>
-                        <option value="en">English</option>
-                        <option value="fr">French</option>
-                        <option value="de">German</option>
-                        <option value="es">Spanish</option>
-                        <option value="it">Italian</option>
-                        <option value="pt">Portuguese</option>
-                        <option value="nl">Dutch</option>
-                        <option value="ja">Japanese</option>
-                        <option value="zh">Chinese</option>
-                        <option value="ko">Korean</option>
-                        <option value="ru">Russian</option>
-                        <option value="th">Thai</option>
-                        <option value="ar">Arabic</option>
-                        <option value="hi">Hindi</option>
-                        <option value="tr">Turkish</option>
-                        <option value="pl">Polish</option>
-                        <option value="vi">Vietnamese</option>
-                        <option value="id">Indonesian</option>
-                    </select>
+            <div class="form-group">
+                <label>Expected languages</label>
+                <p class="form-hint">Leave all unchecked to auto-detect a single language. Select two or more for a mixed-language meeting — each passage is transcribed in the language detected for it.</p>
+                <div class="language-options" id="language-options">
+                    <label class="language-option"><input type="checkbox" value="en"> English</label>
+                    <label class="language-option"><input type="checkbox" value="fr"> French</label>
+                    <label class="language-option"><input type="checkbox" value="de"> German</label>
+                    <label class="language-option"><input type="checkbox" value="es"> Spanish</label>
+                    <label class="language-option"><input type="checkbox" value="it"> Italian</label>
+                    <label class="language-option"><input type="checkbox" value="pt"> Portuguese</label>
+                    <label class="language-option"><input type="checkbox" value="nl"> Dutch</label>
+                    <label class="language-option"><input type="checkbox" value="ja"> Japanese</label>
+                    <label class="language-option"><input type="checkbox" value="zh"> Chinese</label>
+                    <label class="language-option"><input type="checkbox" value="ko"> Korean</label>
+                    <label class="language-option"><input type="checkbox" value="ru"> Russian</label>
+                    <label class="language-option"><input type="checkbox" value="th"> Thai</label>
+                    <label class="language-option"><input type="checkbox" value="ar"> Arabic</label>
+                    <label class="language-option"><input type="checkbox" value="hi"> Hindi</label>
+                    <label class="language-option"><input type="checkbox" value="tr"> Turkish</label>
+                    <label class="language-option"><input type="checkbox" value="pl"> Polish</label>
+                    <label class="language-option"><input type="checkbox" value="vi"> Vietnamese</label>
+                    <label class="language-option"><input type="checkbox" value="id"> Indonesian</label>
                 </div>
-                <div class="form-group">
-                    <label for="speakers-input">Number of Speakers</label>
-                    <input type="text" id="speakers-input" placeholder="Auto" value="">
-                </div>
+            </div>
+            <div class="form-group">
+                <label for="speakers-input">Number of Speakers</label>
+                <input type="text" id="speakers-input" placeholder="Auto" value="">
             </div>
             <div class="form-group">
                 <label for="context-input">Context</label>
@@ -171,13 +169,15 @@ async function handleUpload(e) {
     try {
         const title = document.getElementById('title-input').value;
         const type = document.getElementById('type-select').value;
-        const language = document.getElementById('language-select').value;
+        const expectedLanguages = Array.from(
+            document.querySelectorAll('#language-options input[type="checkbox"]:checked')
+        ).map(cb => cb.value);
         const numSpeakers = document.getElementById('speakers-input').value.trim() || 'auto';
         const preprocessAudio = document.getElementById('preprocess-checkbox').checked;
         const audioAnalysisEnabled = document.getElementById('audio-analysis-checkbox').checked;
         const context = document.getElementById('context-input').value.trim();
         requestNotificationPermission();
-        const result = await API.createMeeting(selectedFile, title, type, language, numSpeakers, preprocessAudio, context, audioAnalysisEnabled);
+        const result = await API.createMeeting(selectedFile, title, type, expectedLanguages, numSpeakers, preprocessAudio, context, audioAnalysisEnabled);
         App.navigate(`/meetings/${result.meeting_id}`);
     } catch (err) {
         showToast(err.message, 'error');

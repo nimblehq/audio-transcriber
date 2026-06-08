@@ -11,12 +11,14 @@ const API = {
         return res.json();
     },
 
-    async createMeeting(file, title, meetingType, language, numSpeakers, preprocessAudio = true, context = '', audioAnalysisEnabled = false) {
+    async createMeeting(file, title, meetingType, expectedLanguages = [], numSpeakers, preprocessAudio = true, context = '', audioAnalysisEnabled = false) {
         const form = new FormData();
         form.append('file', file);
         form.append('title', title || '');
         form.append('meeting_type', meetingType || 'other');
-        form.append('language', language || 'auto');
+        // Zero, one, or many expected languages. None selected → backend auto-detects
+        // a single language; two or more → per-chunk multilingual transcription.
+        (expectedLanguages || []).forEach(code => form.append('expected_languages', code));
         form.append('num_speakers', numSpeakers || 'auto');
         form.append('preprocess_audio', preprocessAudio ? 'true' : 'false');
         form.append('audio_analysis_enabled', audioAnalysisEnabled ? 'true' : 'false');

@@ -584,6 +584,44 @@ body {
     color: var(--text-muted);
 }
 
+.language-options {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 8px;
+}
+
+.language-option {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    margin: 0;
+    padding: 6px 12px;
+    background: var(--bg-surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    color: var(--text);
+    font-size: 13px;
+    cursor: pointer;
+    user-select: none;
+}
+
+.language-option:hover {
+    border-color: var(--primary);
+}
+
+.language-option:has(input:checked) {
+    border-color: var(--primary);
+    color: var(--primary);
+}
+
+.language-option input[type="checkbox"] {
+    width: auto;
+    margin: 0;
+    accent-color: var(--primary);
+    cursor: pointer;
+}
+
 .form-disclosure {
     margin-top: 8px;
     margin-left: 24px;
