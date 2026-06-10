@@ -584,6 +584,127 @@ body {
     color: var(--text-muted);
 }
 
+.form-label-optional {
+    color: var(--text-muted);
+    font-weight: 400;
+}
+
+/* Live indicator of the selected transcription mode (auto / single / multilingual). */
+.language-mode {
+    margin-top: 8px;
+    font-size: 12px;
+    color: var(--text-muted);
+}
+
+.language-mode strong {
+    color: var(--text);
+    font-weight: 600;
+}
+
+.language-mode-auto {
+    color: var(--text);
+}
+
+.language-mode-multi strong {
+    color: var(--primary);
+}
+
+.language-mode-time {
+    display: block;
+    margin-top: 4px;
+    color: var(--text-muted);
+}
+
+/* Tom Select — themed to match the app's design tokens (dark/light). */
+.ts-wrapper {
+    margin-top: 0;
+}
+
+.ts-wrapper.single .ts-control,
+.ts-control {
+    background: var(--bg-surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    color: var(--text);
+    padding: 7px 10px;
+    min-height: 42px;
+    box-shadow: none;
+    font-size: 14px;
+}
+
+.ts-wrapper.focus .ts-control {
+    border-color: var(--primary);
+    box-shadow: none;
+}
+
+.ts-control input,
+.ts-control input::placeholder {
+    color: var(--text);
+}
+
+.ts-control input::placeholder {
+    color: var(--text-muted);
+    opacity: 1;
+}
+
+/* Selected pills — high specificity to override Tom Select's default theme
+   (.ts-wrapper.multi .ts-control > div). */
+.ts-wrapper.multi .ts-control > .item {
+    display: inline-flex;
+    align-items: center;
+    background: var(--primary);
+    color: #fff;
+    border: 0;
+    border-radius: var(--radius-sm);
+    margin: 0 4px 4px 0;
+    padding: 3px 4px 3px 8px;
+    font-size: 13px;
+}
+
+.ts-wrapper.multi .ts-control > .item.active {
+    background: var(--primary-hover);
+    color: #fff;
+}
+
+.ts-wrapper.plugin-remove_button .item .remove {
+    color: #fff;
+    opacity: 0.85;
+}
+
+.ts-wrapper.plugin-remove_button:not(.rtl) .item .remove {
+    border-left: 1px solid rgba(255, 255, 255, 0.35);
+    margin-left: 6px;
+}
+
+.ts-wrapper.plugin-remove_button .item .remove:hover {
+    background: rgba(255, 255, 255, 0.18);
+    opacity: 1;
+}
+
+.ts-dropdown {
+    background: var(--bg-surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    color: var(--text);
+    box-shadow: 0 8px 24px var(--shadow);
+    margin-top: 4px;
+}
+
+.ts-dropdown .option {
+    color: var(--text);
+    padding: 8px 12px;
+    font-size: 14px;
+}
+
+.ts-dropdown .option.active {
+    background: var(--primary);
+    color: #fff;
+}
+
+.ts-dropdown .no-results {
+    color: var(--text-muted);
+}
+
 .form-disclosure {
     margin-top: 8px;
     margin-left: 24px;

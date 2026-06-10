@@ -127,6 +127,10 @@ class TranscriptSegment(BaseModel):
     end: float
     speaker: str
     text: str
+    # Detected language for this segment, set only on the multilingual path.
+    # None ⇒ fall back to Transcript.language (EC-8 backward-compat: pre-feature
+    # transcripts and single-language meetings carry no per-segment language).
+    language: str | None = None
 
 
 class Transcript(BaseModel):
@@ -143,6 +147,10 @@ class MeetingMetadata(BaseModel):
     audio_filename: str = ""
     status: MeetingStatus = MeetingStatus.PROCESSING
     language: str = "auto"
+    # Expected-language set chosen at upload. Size 0/1 ⇒ single-language pipeline
+    # (language above is the input); size ≥ 2 ⇒ per-chunk multilingual pipeline
+    # (BR-2, BR-3).
+    expected_languages: list[str] = Field(default_factory=list)
     num_speakers: int | None = None
     preprocess_audio: bool = True
     audio_analysis_enabled: bool = False

@@ -183,6 +183,62 @@ class TestCreateMeeting:
         meta = json.loads((meetings_dir / meeting_id / "metadata.json").read_text())
         assert meta["audio_analysis_enabled"] is True
 
+    @patch("backend.routers.meetings.start_transcription")
+    async def test_no_expected_languages_defaults_to_auto(
+        self, mock_start, client, sample_audio: Path, meetings_dir: Path
+    ):
+        with open(sample_audio, "rb") as f:
+            res = await client.post(
+                "/api/meetings",
+                files={"file": ("test.wav", f, "audio/wav")},
+                data={"title": "Auto"},
+            )
+        meeting_id = res.json()["meeting_id"]
+        meta = json.loads((meetings_dir / meeting_id / "metadata.json").read_text())
+        assert meta["expected_languages"] == []
+        assert meta["language"] == "auto"
+
+    @patch("backend.routers.meetings.start_transcription")
+    async def test_single_expected_language_sets_language(
+        self, mock_start, client, sample_audio: Path, meetings_dir: Path
+    ):
+        with open(sample_audio, "rb") as f:
+            res = await client.post(
+                "/api/meetings",
+                files={"file": ("test.wav", f, "audio/wav")},
+                data={"title": "Single", "expected_languages": ["en"]},
+            )
+        meeting_id = res.json()["meeting_id"]
+        meta = json.loads((meetings_dir / meeting_id / "metadata.json").read_text())
+        assert meta["expected_languages"] == ["en"]
+        assert meta["language"] == "en"
+
+    @patch("backend.routers.meetings.start_transcription")
+    async def test_multiple_expected_languages_stored(self, mock_start, client, sample_audio: Path, meetings_dir: Path):
+        with open(sample_audio, "rb") as f:
+            res = await client.post(
+                "/api/meetings",
+                files={"file": ("test.wav", f, "audio/wav")},
+                data={"title": "Mixed", "expected_languages": ["en", "th"]},
+            )
+        meeting_id = res.json()["meeting_id"]
+        meta = json.loads((meetings_dir / meeting_id / "metadata.json").read_text())
+        assert meta["expected_languages"] == ["en", "th"]
+        # 2+ languages → multilingual path; single-language input stays auto.
+        assert meta["language"] == "auto"
+
+    @patch("backend.routers.meetings.start_transcription")
+    async def test_expected_languages_sanitized(self, mock_start, client, sample_audio: Path, meetings_dir: Path):
+        with open(sample_audio, "rb") as f:
+            res = await client.post(
+                "/api/meetings",
+                files={"file": ("test.wav", f, "audio/wav")},
+                data={"title": "Dirty", "expected_languages": ["EN", "xx", "en", "th"]},
+            )
+        meeting_id = res.json()["meeting_id"]
+        meta = json.loads((meetings_dir / meeting_id / "metadata.json").read_text())
+        assert meta["expected_languages"] == ["en", "th"]
+
 
 class TestGetMeeting:
     async def test_existing_meeting(self, client, populated_meeting):

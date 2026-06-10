@@ -31,35 +31,33 @@ function renderUpload(container) {
                     <option value="other" selected>Other</option>
                 </select>
             </div>
-            <div class="form-row">
-                <div class="form-group">
-                    <label for="language-select">Language</label>
-                    <select id="language-select">
-                        <option value="auto" selected>Auto-detect</option>
-                        <option value="en">English</option>
-                        <option value="fr">French</option>
-                        <option value="de">German</option>
-                        <option value="es">Spanish</option>
-                        <option value="it">Italian</option>
-                        <option value="pt">Portuguese</option>
-                        <option value="nl">Dutch</option>
-                        <option value="ja">Japanese</option>
-                        <option value="zh">Chinese</option>
-                        <option value="ko">Korean</option>
-                        <option value="ru">Russian</option>
-                        <option value="th">Thai</option>
-                        <option value="ar">Arabic</option>
-                        <option value="hi">Hindi</option>
-                        <option value="tr">Turkish</option>
-                        <option value="pl">Polish</option>
-                        <option value="vi">Vietnamese</option>
-                        <option value="id">Indonesian</option>
-                    </select>
-                </div>
-                <div class="form-group">
-                    <label for="speakers-input">Number of Speakers</label>
-                    <input type="text" id="speakers-input" placeholder="Auto" value="">
-                </div>
+            <div class="form-group">
+                <label for="language-select">Expected languages <span class="form-label-optional">— optional</span></label>
+                <select id="language-select" multiple placeholder="Leave empty to auto-detect the language…">
+                    <option value="en">English</option>
+                    <option value="th">Thai</option>
+                    <option value="fr">French</option>
+                    <option value="de">German</option>
+                    <option value="es">Spanish</option>
+                    <option value="it">Italian</option>
+                    <option value="pt">Portuguese</option>
+                    <option value="nl">Dutch</option>
+                    <option value="ja">Japanese</option>
+                    <option value="zh">Chinese</option>
+                    <option value="ko">Korean</option>
+                    <option value="ru">Russian</option>
+                    <option value="ar">Arabic</option>
+                    <option value="hi">Hindi</option>
+                    <option value="tr">Turkish</option>
+                    <option value="pl">Polish</option>
+                    <option value="vi">Vietnamese</option>
+                    <option value="id">Indonesian</option>
+                </select>
+                <p class="language-mode" id="language-mode"></p>
+            </div>
+            <div class="form-group">
+                <label for="speakers-input">Number of Speakers</label>
+                <input type="text" id="speakers-input" placeholder="Auto" value="">
             </div>
             <div class="form-group">
                 <label for="context-input">Context</label>
@@ -104,11 +102,52 @@ function renderUpload(container) {
 }
 
 let selectedFile = null;
+let languageSelect = null;
+
+function initLanguageSelect() {
+    // Tear down any instance left over from a previous render of this view.
+    if (languageSelect) {
+        languageSelect.destroy();
+        languageSelect = null;
+    }
+    languageSelect = new TomSelect('#language-select', {
+        plugins: ['remove_button'],
+        placeholder: 'Leave empty to auto-detect the language…',
+        hideSelected: true,
+        hidePlaceholder: true,
+        onChange: updateLanguageMode,
+    });
+    updateLanguageMode();
+}
+
+function updateLanguageMode() {
+    const modeEl = document.getElementById('language-mode');
+    if (!modeEl || !languageSelect) return;
+
+    const codes = languageSelect.getValue();
+    const names = codes.map(code => (languageSelect.options[code] || {}).text || code);
+
+    if (codes.length === 0) {
+        modeEl.className = 'language-mode language-mode-auto';
+        modeEl.innerHTML =
+            '🔍 <strong>Auto-detect</strong> — nothing selected, so a single language is detected automatically.';
+    } else if (codes.length === 1) {
+        modeEl.className = 'language-mode';
+        modeEl.innerHTML = `<strong>Single language:</strong> the whole recording is transcribed as ${names[0]}.`;
+    } else {
+        modeEl.className = 'language-mode language-mode-multi';
+        modeEl.innerHTML =
+            `<strong>Multilingual (${names.join(', ')}):</strong> each passage is transcribed in the language detected for it.` +
+            '<span class="language-mode-time">⏱ Expect longer processing — every speech segment is detected and transcribed individually. Auto-detect and single-language meetings run at normal speed.</span>';
+    }
+}
 
 function setupUploadHandlers() {
     const dropZone = document.getElementById('drop-zone');
     const fileInput = document.getElementById('file-input');
     const form = document.getElementById('upload-form');
+
+    initLanguageSelect();
 
     dropZone.addEventListener('click', () => fileInput.click());
 
@@ -171,13 +210,13 @@ async function handleUpload(e) {
     try {
         const title = document.getElementById('title-input').value;
         const type = document.getElementById('type-select').value;
-        const language = document.getElementById('language-select').value;
+        const expectedLanguages = languageSelect ? languageSelect.getValue() : [];
         const numSpeakers = document.getElementById('speakers-input').value.trim() || 'auto';
         const preprocessAudio = document.getElementById('preprocess-checkbox').checked;
         const audioAnalysisEnabled = document.getElementById('audio-analysis-checkbox').checked;
         const context = document.getElementById('context-input').value.trim();
         requestNotificationPermission();
-        const result = await API.createMeeting(selectedFile, title, type, language, numSpeakers, preprocessAudio, context, audioAnalysisEnabled);
+        const result = await API.createMeeting(selectedFile, title, type, expectedLanguages, numSpeakers, preprocessAudio, context, audioAnalysisEnabled);
         App.navigate(`/meetings/${result.meeting_id}`);
     } catch (err) {
         showToast(err.message, 'error');
