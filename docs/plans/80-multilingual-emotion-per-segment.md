@@ -61,4 +61,4 @@ Empty supported list → `UNAVAILABLE` (never `FAILED`), reason `language_not_su
 
 ## Deviations from Plan
 
-_Populated after implementation._
+- None. Implemented as planned across three commits. Architect plan review and code review both passed.
