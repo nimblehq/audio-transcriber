@@ -2,5 +2,5 @@
 
 [scripts]
 setup = "make setup"
-run = ". .venv/bin/activate && uvicorn backend.main:app --host localhost --port $CONDUCTOR_PORT --reload"
+run = "make run PORT=$CONDUCTOR_PORT"
 run_mode = "concurrent"
