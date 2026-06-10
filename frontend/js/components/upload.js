@@ -136,7 +136,9 @@ function updateLanguageMode() {
         modeEl.innerHTML = `<strong>Single language:</strong> the whole recording is transcribed as ${names[0]}.`;
     } else {
         modeEl.className = 'language-mode language-mode-multi';
-        modeEl.innerHTML = `<strong>Multilingual (${names.join(', ')}):</strong> each passage is transcribed in the language detected for it.`;
+        modeEl.innerHTML =
+            `<strong>Multilingual (${names.join(', ')}):</strong> each passage is transcribed in the language detected for it.` +
+            '<span class="language-mode-time">⏱ Expect longer processing — every speech segment is detected and transcribed individually. Auto-detect and single-language meetings run at normal speed.</span>';
     }
 }
 
