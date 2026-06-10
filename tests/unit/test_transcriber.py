@@ -8,7 +8,12 @@ from unittest.mock import MagicMock, patch
 
 from backend.schemas import AudioAnalysis, AudioAnalysisStatus, JobStatus, MeetingStatus
 from backend.services.job_queue import JobQueue
-from backend.services.transcriber import _get_device, _is_cancelled, _run_audio_analysis
+from backend.services.transcriber import (
+    _align_multilingual_segments,
+    _get_device,
+    _is_cancelled,
+    _run_audio_analysis,
+)
 
 
 def _create_test_audio(path: Path) -> None:
@@ -796,13 +801,43 @@ class TestTranscriptionRouting:
         assert mw.load_model.call_args.kwargs.get("language") is None
         assert "language" not in mw.load_model.return_value.transcribe.call_args.kwargs
 
+    @staticmethod
+    def _ml_mocks():
+        """Mocks for the multilingual path: align echoes its input segments and
+        assign_word_speakers stamps a speaker while preserving the language tag."""
+        mock_whisperx = MagicMock()
+        mock_whisperx.load_audio.return_value = MagicMock()
+        mock_whisperx.load_model.return_value = MagicMock()
+        mock_whisperx.load_align_model.return_value = (MagicMock(), MagicMock())
+        # align sentence-splits in reality; here it echoes each input segment so the
+        # per-language grouping (one call per language) stays observable.
+        mock_whisperx.align.side_effect = lambda segs, *a, **k: {"segments": [dict(s) for s in segs]}
+
+        mock_torch = MagicMock()
+        mock_torch.cuda.is_available.return_value = False
+
+        diarize_df = MagicMock()
+        diarize_df.iterrows.return_value = [(0, {"start": 0.0, "end": 9.0, "speaker": "SPEAKER_00"})]
+        diarize_df.__len__.return_value = 1
+        # The pipeline instance is callable; calling it (diarize_model(audio)) yields the dataframe.
+        diarize_instance = MagicMock(return_value=diarize_df)
+        mock_diarize_cls = MagicMock(return_value=diarize_instance)
+
+        def _assign(_diarize_df, result):
+            for seg in result["segments"]:
+                seg["speaker"] = "SPEAKER_00"
+            return result
+
+        return mock_whisperx, mock_torch, mock_diarize_cls, MagicMock(side_effect=_assign)
+
     @patch("backend.services.transcriber.WHISPER_BATCH_SIZE", 16)
     @patch("backend.services.transcriber.WHISPER_MODEL", "large-v3")
     @patch("backend.services.transcriber.WHISPER_DEVICE", "cpu")
     @patch("backend.services.transcriber.HF_TOKEN", "test-token")
-    def test_two_languages_run_multilingual_path(self, tmp_path: Path):
-        """Two+ expected languages → multilingual path, no align, no diarize, per-segment language."""
-        mw, mt, mdc, ma = self._mocks()
+    def test_two_languages_align_diarize_and_preserve_language(self, tmp_path: Path):
+        """Two+ expected languages → multilingual path now aligns, diarizes, assigns
+        speakers, and preserves each segment's detected language (BR-8, AC1)."""
+        mw, mt, mdc, ma = self._ml_mocks()
         queue = JobQueue()
         meetings_dir = tmp_path / "meetings"
         meeting_dir = _create_meeting_on_disk(meetings_dir, language="auto", expected_languages=["en", "th"])
@@ -830,22 +865,25 @@ class TestTranscriptionRouting:
         ml.assert_called_once()
         # Multilingual loads the model without a fixed language.
         assert "language" not in mw.load_model.call_args.kwargs
-        # No alignment and no diarization in this slice.
-        mw.align.assert_not_called()
-        mdc.assert_not_called()
+        # Alignment runs once per language group (en, th) with each language's own model (BR-8).
+        align_languages = sorted(c.kwargs["language_code"] for c in mw.load_align_model.call_args_list)
+        assert align_languages == ["en", "th"]
+        # Diarization now runs on the multilingual path.
+        mdc.assert_called_once()
 
         transcript = json.loads((meeting_dir / "transcript.json").read_text())
-        assert [s["language"] for s in transcript["segments"]] == ["en", "th"]
-        assert all(s["speaker"] == "UNKNOWN" for s in transcript["segments"])
+        assert {s["language"] for s in transcript["segments"]} == {"en", "th"}
+        assert all(s["speaker"] == "SPEAKER_00" for s in transcript["segments"])
         assert transcript["language"] == "en"  # dominant
 
     @patch("backend.services.transcriber.WHISPER_BATCH_SIZE", 16)
     @patch("backend.services.transcriber.WHISPER_MODEL", "large-v3")
     @patch("backend.services.transcriber.WHISPER_DEVICE", "cpu")
     @patch("backend.services.transcriber.HF_TOKEN", "test-token")
-    def test_multilingual_audio_analysis_gets_dominant_and_no_turns(self, tmp_path: Path):
-        """Audio analysis on the multilingual path receives the dominant language and no diarize turns."""
-        mw, mt, mdc, ma = self._mocks()
+    def test_multilingual_audio_analysis_gets_dominant_and_turns(self, tmp_path: Path):
+        """Audio analysis on the multilingual path receives the dominant language and
+        the diarization turns captured during speaker assignment."""
+        mw, mt, mdc, ma = self._ml_mocks()
         queue = JobQueue()
         meetings_dir = tmp_path / "meetings"
         _create_meeting_on_disk(
@@ -871,4 +909,165 @@ class TestTranscriptionRouting:
         maa.assert_called_once()
         # detected_language is the 4th positional arg; diarize_turns is a kwarg.
         assert maa.call_args.args[3] == "en"
-        assert maa.call_args.kwargs["diarize_turns"] is None
+        assert maa.call_args.kwargs["diarize_turns"] == [(0.0, 9.0, "SPEAKER_00")]
+
+    @patch("backend.services.transcriber.WHISPER_BATCH_SIZE", 16)
+    @patch("backend.services.transcriber.WHISPER_MODEL", "large-v3")
+    @patch("backend.services.transcriber.WHISPER_DEVICE", "cpu")
+    @patch("backend.services.transcriber.HF_TOKEN", "")
+    def test_multilingual_without_hf_token_completes_unknown_speakers(self, tmp_path: Path):
+        """Multilingual path with no HF_TOKEN still aligns and completes; diarization
+        is skipped so segments keep UNKNOWN speakers (no crash)."""
+        mw, mt, mdc, ma = self._ml_mocks()
+        queue = JobQueue()
+        meetings_dir = tmp_path / "meetings"
+        meeting_dir = _create_meeting_on_disk(meetings_dir, language="auto", expected_languages=["en", "th"])
+        job = queue.create_job("test-meeting")
+        ml = MagicMock(
+            return_value=(
+                [
+                    {"start": 0.0, "end": 2.0, "text": "Hello", "language": "en"},
+                    {"start": 2.0, "end": 4.0, "text": "สวัสดี", "language": "th"},
+                ],
+                "en",
+            )
+        )
+
+        with (
+            patch("backend.services.transcriber.MEETINGS_DIR", meetings_dir),
+            patch("backend.services.transcriber.job_queue", queue),
+            patch("backend.services.transcriber.transcribe_multilingual", ml),
+            patch.dict("sys.modules", self._sys_modules(mw, mt, mdc, ma)),
+        ):
+            from backend.services.transcriber import _run_transcription
+
+            _run_transcription("test-meeting", job.id)
+
+        mdc.assert_not_called()
+        transcript = json.loads((meeting_dir / "transcript.json").read_text())
+        assert all(s["speaker"] == "UNKNOWN" for s in transcript["segments"])
+        assert {s["language"] for s in transcript["segments"]} == {"en", "th"}
+
+
+def _fake_whisperx(align_side_effect):
+    """Build a mock whisperx module for direct _align_multilingual_segments tests."""
+    mw = MagicMock()
+    mw.load_align_model.return_value = (MagicMock(), MagicMock())
+    mw.align.side_effect = align_side_effect
+    return mw
+
+
+def _echo_align(segs, *args, **kwargs):
+    """Stand in for whisperx.align: echo each input segment unchanged."""
+    return {"segments": [dict(s) for s in segs]}
+
+
+class TestAlignMultilingualSegments:
+    """Per-language alignment grouping, fallback, and timestamp repair (BR-8, BR-9, EC-3)."""
+
+    @staticmethod
+    def _run(ml_segments, align_side_effect):
+        mw = _fake_whisperx(align_side_effect)
+        with patch.dict("sys.modules", {"whisperx": mw, "torch": MagicMock()}):
+            result = _align_multilingual_segments(ml_segments, MagicMock(), "cpu")
+        return result, mw
+
+    def test_each_language_aligned_with_its_own_model(self):
+        """BR-8: one align model per detected language; Thai uses the custom model."""
+        ml = [
+            {"start": 0.0, "end": 2.0, "text": "Hello", "language": "en"},
+            {"start": 2.0, "end": 4.0, "text": "สวัสดี", "language": "th"},
+        ]
+        _result, mw = self._run(ml, _echo_align)
+
+        calls = {c.kwargs["language_code"]: c.kwargs["model_name"] for c in mw.load_align_model.call_args_list}
+        assert calls["en"] is None
+        assert calls["th"] == "airesearch/wav2vec2-large-xlsr-53-th"
+
+    def test_segments_grouped_by_language(self):
+        """Segments of the same language are aligned together in a single call."""
+        ml = [
+            {"start": 0.0, "end": 1.0, "text": "Hello", "language": "en"},
+            {"start": 1.0, "end": 2.0, "text": "สวัสดี", "language": "th"},
+            {"start": 2.0, "end": 3.0, "text": "Bye", "language": "en"},
+        ]
+        _result, mw = self._run(ml, _echo_align)
+
+        # Two align calls (one per language), the English call carrying both English segments.
+        assert mw.align.call_count == 2
+        en_call = next(c for c in mw.align.call_args_list if len(c.args[0]) == 2)
+        assert [s["text"] for s in en_call.args[0]] == ["Hello", "Bye"]
+
+    def test_sentence_split_retains_all_segments(self):
+        """align may return MORE segments than it was given (sentence-splitting); all are kept and tagged."""
+
+        def split(segs, *args, **kwargs):
+            return {
+                "segments": [
+                    {"start": 0.0, "end": 1.0, "text": "Hello"},
+                    {"start": 1.0, "end": 2.0, "text": "there"},
+                ]
+            }
+
+        ml = [{"start": 0.0, "end": 2.0, "text": "Hello there", "language": "en"}]
+        result, _mw = self._run(ml, split)
+
+        assert len(result) == 2
+        assert all(s["language"] == "en" for s in result)
+
+    def test_align_failure_falls_back_to_segment_level(self):
+        """Truth-2: a configured model that fails to align degrades timing only — text is preserved."""
+
+        def boom(segs, *args, **kwargs):
+            raise RuntimeError("alignment exploded")
+
+        ml = [{"start": 1.0, "end": 3.0, "text": "Hello", "language": "en"}]
+        result, _mw = self._run(ml, boom)
+
+        assert len(result) == 1
+        assert result[0]["text"] == "Hello"
+        assert result[0]["start"] == 1.0
+        assert result[0]["end"] == 3.0
+        assert "words" not in result[0]
+
+    def test_non_finite_timestamps_repaired(self):
+        """NaN/inf timestamps from alignment are repaired so click-to-seek stays deterministic (AC3)."""
+
+        def nan_align(segs, *args, **kwargs):
+            return {"segments": [{"start": float("nan"), "end": float("inf"), "text": "Hello", "words": []}]}
+
+        ml = [{"start": 5.0, "end": 7.0, "text": "Hello", "language": "en"}]
+        result, _mw = self._run(ml, nan_align)
+
+        # Non-finite start falls back to the group's first start; end clamps to >= start.
+        assert result[0]["start"] == 5.0
+        assert result[0]["end"] == 5.0
+
+    def test_unsupported_language_skips_alignment_and_keeps_segment_level(self):
+        """AC2/EC-3/BR-9: a language with no alignment model is never sent to load_align_model;
+        its segment retains chunk-level timestamps, unchanged text, and no word data."""
+        ml = [
+            {"start": 0.0, "end": 2.0, "text": "Hello", "language": "en"},
+            {"start": 2.0, "end": 4.0, "text": "xin chào", "language": "xx"},
+        ]
+        result, mw = self._run(ml, _echo_align)
+
+        aligned_languages = [c.kwargs["language_code"] for c in mw.load_align_model.call_args_list]
+        assert "xx" not in aligned_languages
+
+        xx_seg = next(s for s in result if s["language"] == "xx")
+        assert xx_seg["start"] == 2.0
+        assert xx_seg["end"] == 4.0
+        assert xx_seg["text"] == "xin chào"
+        assert "words" not in xx_seg  # words-less segment still survives downstream diarization
+
+    def test_output_sorted_by_start(self):
+        """The merged cross-language result is ordered by start time (AC3)."""
+        ml = [
+            {"start": 4.0, "end": 6.0, "text": "later", "language": "th"},
+            {"start": 0.0, "end": 2.0, "text": "first", "language": "en"},
+        ]
+        result, _mw = self._run(ml, _echo_align)
+
+        starts = [s["start"] for s in result]
+        assert starts == sorted(starts)
