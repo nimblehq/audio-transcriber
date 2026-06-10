@@ -19,6 +19,39 @@ function formatDate(dateStr) {
     return d.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
 }
 
+// Single source of truth for language code -> display name. The upload form
+// builds its expected-language options from this map, and the transcript view
+// renders per-segment language badges from it. Insertion order is the order
+// shown in the upload dropdown (English/Thai first as the primary use case).
+const LANGUAGE_NAMES = {
+    en: 'English',
+    th: 'Thai',
+    fr: 'French',
+    de: 'German',
+    es: 'Spanish',
+    it: 'Italian',
+    pt: 'Portuguese',
+    nl: 'Dutch',
+    ja: 'Japanese',
+    zh: 'Chinese',
+    ko: 'Korean',
+    ru: 'Russian',
+    ar: 'Arabic',
+    hi: 'Hindi',
+    tr: 'Turkish',
+    pl: 'Polish',
+    vi: 'Vietnamese',
+    id: 'Indonesian',
+};
+
+// Returns a human-readable language name for a code. Unknown but non-empty
+// codes degrade to the uppercased code (e.g. "el" -> "EL"); empty/missing
+// codes return '' so callers can omit the badge entirely.
+function formatLanguageName(code) {
+    if (!code) return '';
+    return LANGUAGE_NAMES[code] || code.toUpperCase();
+}
+
 function showToast(message, type = 'success') {
     const container = document.getElementById('toast-container');
     const toast = document.createElement('div');

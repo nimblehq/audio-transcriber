@@ -218,6 +218,10 @@ function renderSegments(container, transcript, meta, meetingId, audioAnalysis) {
     const showInsights = AudioInsights.hasCompletedAnalysis(meta, audioAnalysis);
     const insightsBySegment = showInsights ? AudioInsights.indexBySegment(audioAnalysis) : {};
 
+    // Meeting's primary detected language; legacy/single-language segments that
+    // carry no per-segment language fall back to it for the badge (EC-8).
+    const meetingLanguage = transcript.language;
+
     let prevSpeaker = null;
     container.innerHTML = `
         <div class="segments" id="segments-container">
@@ -225,6 +229,7 @@ function renderSegments(container, transcript, meta, meetingId, audioAnalysis) {
                 const speakerName = speakers[seg.speaker] || seg.speaker;
                 const color = speakerColorMap[seg.speaker];
                 const insights = showInsights ? renderSegmentInsights(seg, insightsBySegment[seg.id]) : '';
+                const languageBadge = renderLanguageBadge(seg, meetingLanguage);
                 const isContinuation = seg.speaker === prevSpeaker;
                 prevSpeaker = seg.speaker;
                 return `
@@ -235,6 +240,7 @@ function renderSegments(container, transcript, meta, meetingId, audioAnalysis) {
                                 onclick="handleSpeakerClick(this, '${seg.speaker}', '${seg.id}')">
                                 ${escapeHtml(speakerName)}<svg class="speaker-label-chevron" width="8" height="6" viewBox="0 0 8 6" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" aria-hidden="true"><path d="M1 1.5 L4 4.5 L7 1.5"/></svg>
                             </button>
+                            ${languageBadge}
                             ${insights}
                             <button class="btn btn-icon btn-segment-play" onclick="playFromSegment(${seg.start})" title="Play from here">▶</button>
                         </div>
@@ -244,6 +250,21 @@ function renderSegments(container, transcript, meta, meetingId, audioAnalysis) {
             }).join('')}
         </div>
     `;
+}
+
+// Renders a presentational badge naming the segment's detected language.
+// Uses the segment's own stored language when present, otherwise falls back to
+// the meeting's primary detected language (EC-8). The badge is UI-only and is
+// never read by the copy/export path (renderPlainTextTab), so output is
+// unchanged (OQ-5). Omitted entirely when no language can be resolved.
+function renderLanguageBadge(seg, meetingLanguage) {
+    const code = seg.language || meetingLanguage;
+    const name = formatLanguageName(code);
+    if (!name) return '';
+    const title = seg.language
+        ? `Detected language: ${name}`
+        : `Meeting language: ${name}`;
+    return `<span class="language-badge" title="${escapeHtml(title)}">${escapeHtml(name)}</span>`;
 }
 
 function renderSegmentInsights(seg, insights) {
