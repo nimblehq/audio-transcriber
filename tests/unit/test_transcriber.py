@@ -706,6 +706,104 @@ class TestRunAudioAnalysis:
         assert result.segment_interactions[0].followed_by_interruption is True
         assert result.dominant_speaker_limitation is True
 
+    def _mixed_segments(self):
+        return [
+            {"id": "seg_0000", "start": 0.0, "end": 1.0, "speaker": "SPEAKER_00", "text": "hello", "language": "en"},
+            {"id": "seg_0001", "start": 1.0, "end": 2.0, "speaker": "SPEAKER_01", "text": "สวัสดี", "language": "th"},
+        ]
+
+    def test_mixed_meeting_analyzes_english_and_marks_others_unavailable(self):
+        # AC1 / EC-6 / BR-10: English segment analyzed, Thai segment marked unavailable,
+        # meeting not skipped wholesale.
+        captured = {}
+
+        def fake_analyze(audio_path, segments, audio_array=None):
+            captured["segments"] = list(segments)
+            return []
+
+        with patch("backend.services.emotion_analyzer.analyze_segments", side_effect=fake_analyze):
+            with patch("backend.services.prosody_analyzer.analyze_segments", return_value=([], [])):
+                with patch("backend.services.transcriber.job_queue.update_job"):
+                    result = _run_audio_analysis(
+                        job_id="j1",
+                        audio=MagicMock(),
+                        segments=self._mixed_segments(),
+                        detected_language="en",
+                        diarize_turns=self._diarize_turns(),
+                    )
+        # Only the English segment is sent to the SER model.
+        assert [s.id for s in captured["segments"]] == ["seg_0000"]
+        assert result.emotion_status == AudioAnalysisStatus.COMPLETED
+        # The Thai segment is marked unavailable, not dropped silently.
+        assert len(result.emotion_unavailable) == 1
+        assert result.emotion_unavailable[0].segment_id == "seg_0001"
+        assert result.emotion_unavailable[0].reason == "language_not_supported:th"
+        # Prosody + interaction unaffected (AC3 / BR-11).
+        assert result.prosody_status == AudioAnalysisStatus.COMPLETED
+        assert result.interaction_status == AudioAnalysisStatus.COMPLETED
+        assert result.status == AudioAnalysisStatus.COMPLETED
+
+    def test_no_english_segments_reports_unavailable_not_failed(self):
+        # AC2: a meeting with no English segments reports emotion unavailable while
+        # prosody and interaction still run.
+        segments = [
+            {"id": "seg_0000", "start": 0.0, "end": 1.0, "speaker": "SPEAKER_00", "text": "สวัสดี", "language": "th"},
+        ]
+        with patch("backend.services.prosody_analyzer.analyze_segments", return_value=([], [])) as mock_prosody:
+            with patch("backend.services.transcriber.job_queue.update_job"):
+                result = _run_audio_analysis(
+                    job_id="j1",
+                    audio=MagicMock(),
+                    segments=segments,
+                    detected_language="th",
+                    diarize_turns=self._diarize_turns(),
+                )
+        assert result.emotion_status == AudioAnalysisStatus.UNAVAILABLE
+        assert result.emotion_reason == "language_not_supported:th"
+        assert len(result.emotion_unavailable) == 1
+        # Prosody + interaction still run (AC3 / BR-11).
+        assert result.prosody_status == AudioAnalysisStatus.COMPLETED
+        assert result.interaction_status == AudioAnalysisStatus.COMPLETED
+        assert result.status == AudioAnalysisStatus.COMPLETED
+        mock_prosody.assert_called_once()
+
+    def test_no_english_aggregate_reason_lists_languages_sorted(self):
+        # The aggregate reason pins the multi-language format for any future consumer.
+        segments = [
+            {"id": "seg_0000", "start": 0.0, "end": 1.0, "speaker": "SPEAKER_00", "text": "x", "language": "th"},
+            {"id": "seg_0001", "start": 1.0, "end": 2.0, "speaker": "SPEAKER_01", "text": "y", "language": "fr"},
+        ]
+        with patch("backend.services.prosody_analyzer.analyze_segments", return_value=([], [])):
+            with patch("backend.services.transcriber.job_queue.update_job"):
+                result = _run_audio_analysis(
+                    job_id="j1",
+                    audio=MagicMock(),
+                    segments=segments,
+                    detected_language="th",
+                    diarize_turns=self._diarize_turns(),
+                )
+        assert result.emotion_reason == "language_not_supported:fr,th"
+        assert len(result.emotion_unavailable) == 2
+
+    def test_emotion_failure_still_propagates_unavailable_markers(self):
+        # Even when the SER run raises, markers partitioned before the call survive.
+        with patch(
+            "backend.services.emotion_analyzer.analyze_segments",
+            side_effect=RuntimeError("model crashed"),
+        ):
+            with patch("backend.services.prosody_analyzer.analyze_segments", return_value=([], [])):
+                with patch("backend.services.transcriber.job_queue.update_job"):
+                    result = _run_audio_analysis(
+                        job_id="j1",
+                        audio=MagicMock(),
+                        segments=self._mixed_segments(),
+                        detected_language="en",
+                        diarize_turns=self._diarize_turns(),
+                    )
+        assert result.emotion_status == AudioAnalysisStatus.FAILED
+        assert "model crashed" in result.emotion_reason
+        assert [m.segment_id for m in result.emotion_unavailable] == ["seg_0001"]
+
 
 class TestTranscriptionRouting:
     """Routing between single-language and multilingual pipelines (BR-2, BR-3, EC-7)."""
