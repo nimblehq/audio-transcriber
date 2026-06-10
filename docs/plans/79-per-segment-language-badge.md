@@ -53,4 +53,4 @@ Badge lives in `.segment-header`, not `.segment-text`. `renderPlainTextTab` read
 
 ## Deviations from Plan
 
-_Populated after implementation._
+- None. Implementation followed the approved plan exactly: shared `LANGUAGE_NAMES` map + `formatLanguageName` in utils.js, upload.js options generated from the map, `renderLanguageBadge` in the transcript viewer, and `.language-badge` CSS. Architect code review passed with no Critical/Major findings.
