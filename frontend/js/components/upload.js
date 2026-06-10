@@ -114,6 +114,7 @@ function initLanguageSelect() {
         plugins: ['remove_button'],
         placeholder: 'Leave empty to auto-detect the language…',
         hideSelected: true,
+        hidePlaceholder: true,
         onChange: updateLanguageMode,
     });
     updateLanguageMode();
