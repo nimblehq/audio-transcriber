@@ -1,0 +1,6 @@
+"$schema" = "https://conductor.build/schemas/settings.repo.schema.json"
+
+[scripts]
+setup = "make setup"
+run = ". .venv/bin/activate && uvicorn backend.main:app --host localhost --port $CONDUCTOR_PORT --reload"
+run_mode = "concurrent"
