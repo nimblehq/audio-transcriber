@@ -64,4 +64,4 @@ No UI change. Satisfied transitively: `_finalize_aligned` guarantees finite, non
 
 ## Deviations from Plan
 
-_Populated after implementation._
+- None. The implementation followed the approved plan; the only changes from the plan-review negotiation (single-language-per-`align()` invariant, `_finite`/per-group fallback, coarse progress bumps) were already folded into the plan before implementation.

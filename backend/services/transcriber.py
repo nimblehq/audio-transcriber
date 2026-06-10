@@ -370,10 +370,10 @@ def _run_single_language_transcription(
 def _finite(value, fallback: float) -> float:
     """Coerce ``value`` to a finite float, falling back when it is missing/NaN/inf."""
     try:
-        result = float(value)
+        coerced = float(value)
     except (TypeError, ValueError):
         return fallback
-    return result if math.isfinite(result) else fallback
+    return coerced if math.isfinite(coerced) else fallback
 
 
 def _segment_level(group: list[dict], language: str) -> list[dict]:
