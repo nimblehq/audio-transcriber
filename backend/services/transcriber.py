@@ -11,6 +11,7 @@ from pathlib import Path
 from backend.schemas import (
     AudioAnalysis,
     AudioAnalysisStatus,
+    EmotionUnavailable,
     JobStatus,
     MeetingMetadata,
     MeetingStatus,
@@ -139,22 +140,41 @@ def _run_emotion_analysis(
     audio,
     segment_models: list[TranscriptSegment],
     detected_language: str,
-) -> tuple[AudioAnalysisStatus, str | None, list]:
-    """Run SER. Returns (status, reason, annotations)."""
-    if detected_language != "en":
-        logger.info("Skipping emotion analysis: language %s is not supported", detected_language)
-        return AudioAnalysisStatus.UNAVAILABLE, f"language_not_supported:{detected_language}", []
+) -> tuple[AudioAnalysisStatus, str | None, list, list[EmotionUnavailable]]:
+    """Run SER per segment, gated on each segment's language (BR-10).
+
+    English segments are analyzed; segments in a language the emotion model does
+    not support are marked unavailable. The meeting is no longer skipped wholesale
+    when it merely contains some non-English speech (EC-6). A segment with no
+    per-segment language (single-language path, pre-feature transcripts) falls
+    back to the meeting's detected language (EC-8).
+
+    Returns (status, reason, annotations, unavailable_markers).
+    """
+    from backend.services.emotion_analyzer import SUPPORTED_LANGUAGES, analyze_segments
+
+    supported: list[TranscriptSegment] = []
+    unavailable: list[EmotionUnavailable] = []
+    for segment in segment_models:
+        language = segment.language or detected_language
+        if language in SUPPORTED_LANGUAGES:
+            supported.append(segment)
+        else:
+            unavailable.append(EmotionUnavailable(segment_id=segment.id, reason=f"language_not_supported:{language}"))
+
+    if not supported:
+        languages = ",".join(sorted({m.reason.split(":", 1)[1] for m in unavailable}))
+        logger.info("Skipping emotion analysis: no emotion-supported segments (languages: %s)", languages)
+        return AudioAnalysisStatus.UNAVAILABLE, f"language_not_supported:{languages}", [], unavailable
 
     try:
         job_queue.update_job(job_id, stage="emotion_analysis", progress=92)
 
-        from backend.services.emotion_analyzer import analyze_segments
-
-        annotations = analyze_segments(audio_path=None, segments=segment_models, audio_array=audio)
-        return AudioAnalysisStatus.COMPLETED, None, annotations
+        annotations = analyze_segments(audio_path=None, segments=supported, audio_array=audio)
+        return AudioAnalysisStatus.COMPLETED, None, annotations, unavailable
     except Exception as e:
         logger.exception("Emotion analysis failed")
-        return AudioAnalysisStatus.FAILED, str(e), []
+        return AudioAnalysisStatus.FAILED, str(e), [], unavailable
 
 
 def _run_prosody_analysis(
@@ -236,7 +256,9 @@ def _run_audio_analysis(
     """
     segment_models = [TranscriptSegment(**s) for s in segments]
 
-    emotion_status, emotion_reason, emotions = _run_emotion_analysis(job_id, audio, segment_models, detected_language)
+    emotion_status, emotion_reason, emotions, emotion_unavailable = _run_emotion_analysis(
+        job_id, audio, segment_models, detected_language
+    )
     prosody_status, prosody_reason, prosody, prosody_unavailable = _run_prosody_analysis(job_id, audio, segment_models)
     (
         interaction_status,
@@ -257,6 +279,7 @@ def _run_audio_analysis(
         emotion_status=emotion_status,
         emotion_reason=emotion_reason,
         emotions=emotions,
+        emotion_unavailable=emotion_unavailable,
         prosody_status=prosody_status,
         prosody_reason=prosody_reason,
         prosody=prosody,

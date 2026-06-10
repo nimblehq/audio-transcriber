@@ -10,6 +10,10 @@ from backend.schemas import EmotionAnnotation, EmotionCategory
 logger = logging.getLogger(__name__)
 
 LOW_CONFIDENCE_THRESHOLD = 0.5
+# Languages the SER model is validated for. Single source of truth for emotion
+# gating; non-English segments are marked unavailable rather than mislabeled
+# (BR-10, OQ-4 — a non-English emotion model is out of scope).
+SUPPORTED_LANGUAGES = frozenset({"en"})
 SER_MODEL_ID = "firdhokk/speech-emotion-recognition-with-openai-whisper-large-v3"
 SAMPLE_RATE = 16000
 MIN_SEGMENT_SECONDS = 0.3

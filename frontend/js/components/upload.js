@@ -71,8 +71,9 @@ function renderUpload(container) {
                         Adds 8–17 minutes to a 1-hour meeting (roughly +50% processing time).
                     </p>
                     <p class="form-disclosure-note">
-                        Currently optimized for English. Results may be less reliable for other languages,
-                        and analysis is skipped entirely when the detected language isn't supported.
+                        Emotion analysis currently supports English only. In a mixed-language meeting,
+                        the English portions are still analyzed and other-language passages are marked
+                        unavailable. Prosody and interaction signals run for every language.
                     </p>
                 </div>
             </div>

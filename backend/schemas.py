@@ -63,6 +63,11 @@ class EmotionAnnotation(BaseModel):
     low_confidence: bool
 
 
+class EmotionUnavailable(BaseModel):
+    segment_id: str
+    reason: str
+
+
 class ProsodyAnnotation(BaseModel):
     segment_id: str
     speaker: str
@@ -110,6 +115,9 @@ class AudioAnalysis(BaseModel):
     emotion_status: AudioAnalysisStatus | None = None
     emotion_reason: str | None = None
     emotions: list[EmotionAnnotation] = Field(default_factory=list)
+    # Per-segment markers for segments whose language the emotion (SER) model does
+    # not support (BR-10). Data-only, mirroring prosody_unavailable.
+    emotion_unavailable: list[EmotionUnavailable] = Field(default_factory=list)
     prosody_status: AudioAnalysisStatus | None = None
     prosody_reason: str | None = None
     prosody: list[ProsodyAnnotation] = Field(default_factory=list)

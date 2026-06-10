@@ -10,6 +10,7 @@ from backend.schemas import (
     AudioAnalysisStatus,
     EmotionAnnotation,
     EmotionCategory,
+    EmotionUnavailable,
     InteractionEvent,
     InteractionEventType,
     JobInfo,
@@ -312,6 +313,18 @@ class TestAudioAnalysisFields:
         a = AudioAnalysis(status=AudioAnalysisStatus.UNAVAILABLE, reason="language_not_supported:fr")
         assert a.emotions == []
         assert a.reason == "language_not_supported:fr"
+
+    def test_audio_analysis_default_emotion_unavailable_empty(self):
+        a = AudioAnalysis(status=AudioAnalysisStatus.COMPLETED)
+        assert a.emotion_unavailable == []
+
+    def test_audio_analysis_with_emotion_unavailable(self):
+        a = AudioAnalysis(
+            status=AudioAnalysisStatus.COMPLETED,
+            emotion_unavailable=[EmotionUnavailable(segment_id="seg-1", reason="language_not_supported:th")],
+        )
+        assert a.emotion_unavailable[0].segment_id == "seg-1"
+        assert a.emotion_unavailable[0].reason == "language_not_supported:th"
 
     def test_job_stage_emotion_analysis(self):
         assert JobStage.EMOTION_ANALYSIS == "emotion_analysis"
