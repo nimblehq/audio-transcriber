@@ -59,6 +59,56 @@ CUSTOM_ALIGN_MODELS = {
 }
 
 
+def _diarize_and_assign(
+    job_id: str,
+    audio,
+    num_speakers: int | None,
+    device: str,
+    result: dict,
+    *,
+    progress: int = 70,
+) -> tuple[dict, list[tuple[float, float, str]] | None]:
+    """Run PyAnnote diarization and assign speakers to the transcript result.
+
+    Shared by the single-language and multilingual pipelines. No-op (returns the
+    result unchanged with no turns) when HF_TOKEN is unset. Returns
+    ``(result_with_speakers, diarize_turns)`` where ``diarize_turns`` are the raw
+    PyAnnote turns (with overlaps) required by interaction analysis (BR-3.1).
+    """
+    if not HF_TOKEN:
+        return result, None
+
+    import torch
+    from whisperx.diarize import DiarizationPipeline, assign_word_speakers
+
+    job_queue.update_job(job_id, stage="diarizing", progress=progress)
+    diarize_model = DiarizationPipeline(
+        model_name="pyannote/speaker-diarization-3.1",
+        token=HF_TOKEN,
+        device=device,
+    )
+    diarize_kwargs = {}
+    if num_speakers:
+        diarize_kwargs["num_speakers"] = num_speakers
+    diarize_segments = diarize_model(audio, **diarize_kwargs)
+    # Capture raw PyAnnote turns (with overlaps) before assign_word_speakers
+    # collapses them into per-speaker non-overlapping transcript segments.
+    # Required by interaction analysis (BR-3.1).
+    try:
+        diarize_turns = [
+            (float(row["start"]), float(row["end"]), str(row["speaker"])) for _, row in diarize_segments.iterrows()
+        ]
+    except Exception:
+        logger.exception("Failed to capture raw diarization turns; interaction analysis will be unavailable")
+        diarize_turns = None
+    result = assign_word_speakers(diarize_segments, result)
+
+    if device == "cuda":
+        torch.cuda.empty_cache()
+
+    return result, diarize_turns
+
+
 def _get_device() -> str:
     if WHISPER_DEVICE != "auto":
         return WHISPER_DEVICE
@@ -232,7 +282,6 @@ def _run_single_language_transcription(
     """
     import torch
     import whisperx
-    from whisperx.diarize import DiarizationPipeline, assign_word_speakers
 
     # Transcribe
     job_queue.update_job(job_id, stage="transcribing", progress=20)
@@ -297,30 +346,8 @@ def _run_single_language_transcription(
         if device == "cuda":
             torch.cuda.empty_cache()
 
-    # Diarize
-    diarize_turns: list[tuple[float, float, str]] | None = None
-    if HF_TOKEN:
-        job_queue.update_job(job_id, stage="diarizing", progress=70)
-        diarize_model = DiarizationPipeline(
-            model_name="pyannote/speaker-diarization-3.1",
-            token=HF_TOKEN,
-            device=device,
-        )
-        diarize_kwargs = {}
-        if metadata.num_speakers:
-            diarize_kwargs["num_speakers"] = metadata.num_speakers
-        diarize_segments = diarize_model(audio, **diarize_kwargs)
-        # Capture raw PyAnnote turns (with overlaps) before assign_word_speakers
-        # collapses them into per-speaker non-overlapping transcript segments.
-        # Required by interaction analysis (BR-3.1).
-        try:
-            diarize_turns = [
-                (float(row["start"]), float(row["end"]), str(row["speaker"])) for _, row in diarize_segments.iterrows()
-            ]
-        except Exception:
-            logger.exception("Failed to capture raw diarization turns; interaction analysis will be unavailable")
-            diarize_turns = None
-        result = assign_word_speakers(diarize_segments, result)
+    # Diarize + assign speakers (shared with the multilingual path)
+    result, diarize_turns = _diarize_and_assign(job_id, audio, metadata.num_speakers, device, result)
 
     # Build transcript segments
     segments = []
