@@ -2,8 +2,10 @@ from __future__ import annotations
 
 import json
 import logging
+import math
 import threading
 import time
+from collections import defaultdict
 from pathlib import Path
 
 from backend.schemas import (
@@ -365,22 +367,114 @@ def _run_single_language_transcription(
     return segments, detected_language, diarize_turns
 
 
+def _finite(value, fallback: float) -> float:
+    """Coerce ``value`` to a finite float, falling back when it is missing/NaN/inf."""
+    try:
+        result = float(value)
+    except (TypeError, ValueError):
+        return fallback
+    return result if math.isfinite(result) else fallback
+
+
+def _segment_level(group: list[dict], language: str) -> list[dict]:
+    """Segment-level (chunk) timestamps with text untouched and no word data.
+
+    Used when a language has no alignment model (BR-9, EC-3) or when alignment
+    fails (Truth-2: degrade timing only, never the transcript text).
+    """
+    return [{"start": s["start"], "end": s["end"], "text": s["text"], "language": language} for s in group]
+
+
+def _finalize_aligned(segments: list[dict], group: list[dict], language: str) -> list[dict]:
+    """Stamp the (single) language on each aligned segment and guarantee usable timing.
+
+    ``whisperx.align`` sentence-splits its input, so the output count differs from
+    the input — segments are never positionally zipped back. Every segment from a
+    single ``align`` call shares one language, so ``language`` is re-attached as a
+    constant (BR-8). Non-finite timestamps are repaired to keep the player's
+    seek/highlight (AC3) deterministic.
+    """
+    if not segments:
+        return _segment_level(group, language)
+
+    finalized: list[dict] = []
+    last_end = group[0]["start"] if group else 0.0
+    for seg in segments:
+        start = _finite(seg.get("start"), last_end)
+        end = _finite(seg.get("end"), start)
+        if end < start:
+            end = start
+        seg["start"], seg["end"], seg["language"] = start, end, language
+        finalized.append(seg)
+        last_end = end
+    return finalized
+
+
+def _align_multilingual_segments(ml_segments: list[dict], audio, device: str) -> list[dict]:
+    """Group segments by detected language and align each group with its own model.
+
+    Segments are grouped by their ``language`` field and each group is aligned with
+    that language's alignment model (BR-8), using the custom model from
+    ``CUSTOM_ALIGN_MODELS`` where one is configured. Languages without an alignment
+    model, or whose alignment raises, retain segment-level timestamps with text
+    unchanged (BR-9, EC-3, Truth-2). Returns a flat list sorted by start time.
+    """
+    import torch
+    import whisperx
+
+    by_language: dict[str, list[dict]] = defaultdict(list)
+    for seg in ml_segments:
+        by_language[seg["language"]].append(seg)
+
+    aligned: list[dict] = []
+    for language in sorted(by_language):
+        group = by_language[language]
+        if language not in ALIGNMENT_LANGUAGES:
+            aligned.extend(_segment_level(group, language))
+            continue
+        try:
+            align_model_name = CUSTOM_ALIGN_MODELS.get(language)
+            model_a, align_metadata = whisperx.load_align_model(
+                language_code=language, device=device, model_name=align_model_name
+            )
+            try:
+                result = whisperx.align(
+                    [{"start": s["start"], "end": s["end"], "text": s["text"]} for s in group],
+                    model_a,
+                    align_metadata,
+                    audio,
+                    device,
+                    return_char_alignments=False,
+                )
+            finally:
+                del model_a
+                if device == "cuda":
+                    torch.cuda.empty_cache()
+            aligned.extend(_finalize_aligned(result["segments"], group, language))
+        except Exception:
+            logger.exception("Alignment failed for language %s; retaining segment-level timestamps", language)
+            aligned.extend(_segment_level(group, language))
+
+    aligned.sort(key=lambda s: s["start"])
+    return aligned
+
+
 def _run_multilingual_transcription(
     job_id: str,
     audio,
     selected_languages: set[str],
+    num_speakers: int | None,
     device: str,
     compute_type: str,
-) -> tuple[list[dict], str]:
-    """Per-chunk multilingual pipeline (BR-4 through BR-7).
+) -> tuple[list[dict], str, list[tuple[float, float, str]] | None]:
+    """Per-chunk multilingual pipeline (BR-4 through BR-9).
 
     Triggered for 2+ expected languages. Each VAD speech chunk is detected
-    (constrained to the selected set) and transcribed in its own language.
-
-    Timestamps stay at chunk level and speakers are left UNKNOWN — word-level
-    alignment and cross-language speaker assignment are a later slice (BR-8/BR-9),
-    so this path runs neither alignment nor diarization.
-    Returns (segments, detected_language) where detected_language is the dominant.
+    (constrained to the selected set) and transcribed in its own language, then
+    segments are grouped by detected language and word-aligned per language (BR-8,
+    BR-9) before the shared diarization / speaker-assignment stage.
+    Returns (segments, detected_language, diarize_turns) where detected_language is
+    the dominant.
     """
     import torch
     import whisperx
@@ -390,7 +484,8 @@ def _run_multilingual_transcription(
     model = whisperx.load_model(WHISPER_MODEL, device, compute_type=compute_type)
 
     def _progress(pct: int) -> None:
-        job_queue.update_job(job_id, stage="transcribing", progress=min(pct, 89))
+        # Cap below the alignment/diarization stages so they have progress headroom.
+        job_queue.update_job(job_id, stage="transcribing", progress=min(pct, 80))
 
     ml_segments, detected_language = transcribe_multilingual(audio, selected_languages, model, progress_cb=_progress)
 
@@ -401,20 +496,27 @@ def _run_multilingual_transcription(
     if not ml_segments:
         raise RuntimeError("No speech detected in audio")
 
+    # Per-language word alignment (BR-8, BR-9, EC-3).
+    job_queue.update_job(job_id, stage="aligning", progress=82)
+    aligned = _align_multilingual_segments(ml_segments, audio, device)
+
+    # Diarize + assign speakers (shared with the single-language path).
+    result, diarize_turns = _diarize_and_assign(job_id, audio, num_speakers, device, {"segments": aligned}, progress=85)
+
     segments = []
-    for i, seg in enumerate(ml_segments):
+    for i, seg in enumerate(result["segments"]):
         segments.append(
             {
                 "id": f"seg_{i:04d}",
                 "start": round(seg["start"], 2),
                 "end": round(seg["end"], 2),
-                "speaker": "UNKNOWN",
+                "speaker": seg.get("speaker", "UNKNOWN"),
                 "text": seg["text"].strip(),
                 "language": seg["language"],
             }
         )
 
-    return segments, detected_language
+    return segments, detected_language, diarize_turns
 
 
 def _run_transcription(meeting_id: str, job_id: str):
@@ -472,8 +574,8 @@ def _run_transcription(meeting_id: str, job_id: str):
         # detection and transcription.
         diarize_turns: list[tuple[float, float, str]] | None = None
         if len(metadata.expected_languages) >= 2:
-            segments, detected_language = _run_multilingual_transcription(
-                job_id, audio, set(metadata.expected_languages), device, compute_type
+            segments, detected_language, diarize_turns = _run_multilingual_transcription(
+                job_id, audio, set(metadata.expected_languages), metadata.num_speakers, device, compute_type
             )
         else:
             segments, detected_language, diarize_turns = _run_single_language_transcription(
