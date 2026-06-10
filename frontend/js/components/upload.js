@@ -35,6 +35,7 @@ function renderUpload(container) {
                 <label for="language-select">Expected languages <span class="form-label-optional">— optional</span></label>
                 <select id="language-select" multiple placeholder="Leave empty to auto-detect the language…">
                     <option value="en">English</option>
+                    <option value="th">Thai</option>
                     <option value="fr">French</option>
                     <option value="de">German</option>
                     <option value="es">Spanish</option>
@@ -45,7 +46,6 @@ function renderUpload(container) {
                     <option value="zh">Chinese</option>
                     <option value="ko">Korean</option>
                     <option value="ru">Russian</option>
-                    <option value="th">Thai</option>
                     <option value="ar">Arabic</option>
                     <option value="hi">Hindi</option>
                     <option value="tr">Turkish</option>
