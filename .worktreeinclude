@@ -1,0 +1,7 @@
+# Files copied into each new Conductor workspace.
+# Only gitignored files need listing here; tracked files arrive via git.
+#
+# .env holds HF_TOKEN, required for speaker diarization. .env.example is
+# tracked, so it comes through git already.
+.env
+.env.local
