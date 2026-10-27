@@ -170,6 +170,10 @@ class MeetingMetadata(BaseModel):
     job_id: str | None = None
     speakers: dict[str, str] = Field(default_factory=dict)
     error: str | None = None
+    # Set when diarization failed or timed out and the meeting degraded to no
+    # speaker labels (BR-10, EC-3), so clients can say why every speaker is
+    # UNKNOWN instead of failing silently (#150).
+    diarization_error: str | None = None
     context: str = ""
 
 

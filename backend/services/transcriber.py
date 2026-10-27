@@ -136,17 +136,20 @@ def _diarize_and_assign(
     result: dict,
     *,
     progress: int = 70,
-) -> tuple[dict, list[tuple[float, float, str]] | None]:
+) -> tuple[dict, list[tuple[float, float, str]] | None, str | None]:
     """Run PyAnnote diarization and assign speakers to the transcript result.
 
     Shared by the single-language and multilingual pipelines. No-op (returns the
     result unchanged with no turns) when HF_TOKEN is unset. Returns
-    ``(result_with_speakers, diarize_turns)`` where ``diarize_turns`` are the raw
-    PyAnnote turns (with overlaps) required by interaction analysis (BR-3.1).
+    ``(result_with_speakers, diarize_turns, diarization_error)`` where
+    ``diarize_turns`` are the raw PyAnnote turns (with overlaps) required by
+    interaction analysis (BR-3.1), and ``diarization_error`` is a user-facing
+    reason when diarization failed or timed out (``None`` otherwise, including
+    when it is disabled) so the meeting can say why speakers are UNKNOWN (#150).
     """
     hf_token = config.current_hf_token()
     if not hf_token:
-        return result, None
+        return result, None, None
 
     import torch
     from whisperx.diarize import DiarizationPipeline, assign_word_speakers
@@ -167,13 +170,13 @@ def _diarize_and_assign(
     status, value = _call_with_timeout(_run_diarization, DIARIZATION_TIMEOUT_SEC, "diarization")
     if status == "timeout":
         logger.error("Diarization exceeded %ss; continuing without speaker labels", DIARIZATION_TIMEOUT_SEC)
-        return result, None
+        return result, None, f"Speaker detection timed out after {DIARIZATION_TIMEOUT_SEC // 60} minutes."
     if status == "error":
         # A token accepted at provisioning time may later be revoked or be
         # unverifiable (e.g. offline). Degrade to no-diarization rather than
         # failing the whole meeting (BR-10, EC-3).
         logger.error("Diarization failed; continuing without speaker labels", exc_info=value)
-        return result, None
+        return result, None, _diarization_failure_reason(value)
 
     diarize_segments = value
 
@@ -192,7 +195,18 @@ def _diarize_and_assign(
     if device == "cuda":
         torch.cuda.empty_cache()
 
-    return result, diarize_turns
+    return result, diarize_turns, None
+
+
+def _diarization_failure_reason(exc: BaseException) -> str:
+    """Condense a diarization exception into a one-line, user-facing reason.
+
+    huggingface_hub errors are multi-line (status, request id, then the
+    actionable sentence, e.g. "Access to model ... is restricted ... Visit ...
+    to ask for access."), so keep the last non-empty line.
+    """
+    lines = [line.strip() for line in str(exc).splitlines() if line.strip()]
+    return lines[-1] if lines else type(exc).__name__
 
 
 def _get_device() -> str:
@@ -382,11 +396,11 @@ def _run_single_language_transcription(
     device: str,
     compute_type: str,
     batch_size: int,
-) -> tuple[list[dict], str, list[tuple[float, float, str]] | None]:
+) -> tuple[list[dict], str, list[tuple[float, float, str]] | None, str | None]:
     """Existing single-language pipeline: transcribe -> align -> diarize -> build.
 
     Unchanged behavior for the 0/1-expected-language case (BR-2, EC-7).
-    Returns (segments, detected_language, diarize_turns).
+    Returns (segments, detected_language, diarize_turns, diarization_error).
     """
     import torch
     import whisperx
@@ -473,7 +487,7 @@ def _run_single_language_transcription(
                 torch.cuda.empty_cache()
 
     # Diarize + assign speakers (shared with the multilingual path)
-    result, diarize_turns = _diarize_and_assign(job_id, audio, metadata.num_speakers, device, result)
+    result, diarize_turns, diarization_error = _diarize_and_assign(job_id, audio, metadata.num_speakers, device, result)
 
     # Build transcript segments
     segments = []
@@ -488,7 +502,7 @@ def _run_single_language_transcription(
             }
         )
 
-    return segments, detected_language, diarize_turns
+    return segments, detected_language, diarize_turns, diarization_error
 
 
 def _finite(value, fallback: float) -> float:
@@ -603,15 +617,15 @@ def _run_multilingual_transcription(
     num_speakers: int | None,
     device: str,
     compute_type: str,
-) -> tuple[list[dict], str, list[tuple[float, float, str]] | None]:
+) -> tuple[list[dict], str, list[tuple[float, float, str]] | None, str | None]:
     """Per-chunk multilingual pipeline (BR-4 through BR-9).
 
     Triggered for 2+ expected languages. Each VAD speech chunk is detected
     (constrained to the selected set) and transcribed in its own language, then
     segments are grouped by detected language and word-aligned per language (BR-8,
     BR-9) before the shared diarization / speaker-assignment stage.
-    Returns (segments, detected_language, diarize_turns) where detected_language is
-    the dominant.
+    Returns (segments, detected_language, diarize_turns, diarization_error) where
+    detected_language is the dominant.
     """
     import torch
     import whisperx
@@ -638,7 +652,9 @@ def _run_multilingual_transcription(
     aligned = _align_multilingual_segments(job_id, ml_segments, audio, device)
 
     # Diarize + assign speakers (shared with the single-language path).
-    result, diarize_turns = _diarize_and_assign(job_id, audio, num_speakers, device, {"segments": aligned}, progress=85)
+    result, diarize_turns, diarization_error = _diarize_and_assign(
+        job_id, audio, num_speakers, device, {"segments": aligned}, progress=85
+    )
 
     segments = []
     for i, seg in enumerate(result["segments"]):
@@ -653,7 +669,7 @@ def _run_multilingual_transcription(
             }
         )
 
-    return segments, detected_language, diarize_turns
+    return segments, detected_language, diarize_turns, diarization_error
 
 
 def _run_transcription(meeting_id: str, job_id: str):
@@ -711,11 +727,11 @@ def _run_transcription(meeting_id: str, job_id: str):
         # detection and transcription.
         diarize_turns: list[tuple[float, float, str]] | None = None
         if len(metadata.expected_languages) >= 2:
-            segments, detected_language, diarize_turns = _run_multilingual_transcription(
+            segments, detected_language, diarize_turns, diarization_error = _run_multilingual_transcription(
                 job_id, audio, set(metadata.expected_languages), metadata.num_speakers, device, compute_type
             )
         else:
-            segments, detected_language, diarize_turns = _run_single_language_transcription(
+            segments, detected_language, diarize_turns, diarization_error = _run_single_language_transcription(
                 job_id, audio, metadata, device, compute_type, batch_size
             )
 
@@ -762,6 +778,7 @@ def _run_transcription(meeting_id: str, job_id: str):
         metadata.status = MeetingStatus.READY
         metadata.duration_seconds = duration
         metadata.speakers = speaker_map
+        metadata.diarization_error = diarization_error
 
         with open(metadata_path, "w", encoding="utf-8") as f:
             json.dump(metadata.model_dump(mode="json"), f, ensure_ascii=False, indent=2, default=str)

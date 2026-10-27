@@ -240,6 +240,7 @@ async def retry_transcription(meeting_id: str):
     job = job_queue.create_job(meeting_id)
     metadata.status = MeetingStatus.PROCESSING
     metadata.error = None
+    metadata.diarization_error = None
     metadata.audio_analysis_status = None
     metadata.job_id = job.id
     _save_metadata(metadata)
