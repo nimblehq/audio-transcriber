@@ -49,6 +49,13 @@ async function loadMeetingView(container, meetingId) {
                 ` : ''}
 
                 ${!isProcessing && !isError ? `
+                    ${meta.diarization_error ? `
+                        <div class="meeting-notice" role="status">
+                            <strong>Speaker detection failed</strong> — all speakers are shown as Unknown.
+                            ${escapeHtml(meta.diarization_error)}
+                            Fix the cause, then use Re-run.
+                        </div>
+                    ` : ''}
                     <div class="form-group">
                         <label for="meeting-context">Context</label>
                         <textarea id="meeting-context" rows="3" placeholder="Add context about this meeting for better analysis...">${escapeHtml(meta.context || '')}</textarea>
