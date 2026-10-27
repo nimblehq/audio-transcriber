@@ -8,6 +8,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ### Fixed
 
+- Pre-download the gated `pyannote/speaker-diarization-community-1` model (the PLDA that pyannote-audio 4.x loads for every diarization) during first-run provisioning. Before, it downloaded at the diarization step; when the HuggingFace account had not accepted its conditions, diarization failed silently and every speaker showed as Unknown. A missing access grant now fails provisioning with the gated-repo message, and existing installs re-provision once to fetch it.
+- When speaker detection fails or times out, the meeting now records the reason, and the web and macOS apps show a notice with the reason and a re-run action, instead of only a single "Unknown" speaker.
 - Pre-download the HuggingFace alignment models for the configured languages (Thai by default) during first-run provisioning, so they no longer download lazily at the align step (50%) mid-transcription — which was indistinguishable from a hang. Torch-native languages (English, French, German, Spanish, Italian) were already unaffected. The alignment-stage watchdog remains the safety net for any language left unprovisioned.
 
 ### Security
