@@ -25,6 +25,9 @@ struct TranscriptContainerView: View {
     var body: some View {
         VStack(spacing: 0) {
             header
+            if let reason = detail.metadata.diarizationError {
+                DiarizationFailedNotice(reason: reason) { Task { await store.retry() } }
+            }
             AudioBar(audio: audio)
             Divider()
             Picker("", selection: $tab) {
@@ -199,5 +202,27 @@ private struct WaveformScrubber: View {
         }
         let floor = 0.16
         return (0..<count).map { CGFloat(floor + (1 - floor) * random($0)) }
+    }
+}
+
+/// Shown on a ready meeting whose diarization failed (every speaker is
+/// UNKNOWN), with the reason and a re-run action (#150).
+struct DiarizationFailedNotice: View {
+    let reason: String
+    let onRerun: () -> Void
+
+    var body: some View {
+        HStack(alignment: .top, spacing: 10) {
+            Image(systemName: "person.2.slash").foregroundStyle(.orange)
+            VStack(alignment: .leading, spacing: 2) {
+                Text("Speaker detection failed — all speakers are shown as Unknown.")
+                    .font(.callout.weight(.semibold))
+                Text(reason).font(.caption).foregroundStyle(.secondary).textSelection(.enabled)
+            }
+            Spacer()
+            Button("Transcribe Again", action: onRerun)
+        }
+        .padding(10)
+        .background(.orange.opacity(0.1))
     }
 }

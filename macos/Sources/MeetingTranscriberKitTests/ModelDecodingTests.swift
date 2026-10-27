@@ -31,7 +31,9 @@ func runModelDecodingTests() {
           "created_at":"2026-08-22T10:31:59","duration_seconds":600.0,"audio_filename":"audio.mp3",
           "status":"ready","language":"en","expected_languages":["en","fr"],"num_speakers":2,
           "preprocess_audio":true,"audio_analysis_enabled":true,"audio_analysis_status":"completed",
-          "job_id":"j1","speakers":{"SPEAKER_00":"Alice"},"error":null,"context":"hiring"},
+          "job_id":"j1","speakers":{"SPEAKER_00":"Alice"},"error":null,
+          "diarization_error":"Access to model pyannote/speaker-diarization-community-1 is restricted.",
+          "context":"hiring"},
          "transcript":{"segments":[
             {"id":"s1","start":0.0,"end":2.0,"speaker":"SPEAKER_00","text":"Hi","language":"en"},
             {"id":"s2","start":2.0,"end":4.0,"speaker":"SPEAKER_01","text":"Bonjour","language":"fr"}],
@@ -44,6 +46,9 @@ func runModelDecodingTests() {
         expectEqual(detail?.metadata.numSpeakers, 2, "num speakers")
         expectEqual(detail?.metadata.jobId, "j1", "job id present in metadata")
         expectEqual(detail?.metadata.speakers["SPEAKER_00"], "Alice", "speaker map")
+        expectEqual(detail?.metadata.diarizationError,
+                    "Access to model pyannote/speaker-diarization-community-1 is restricted.",
+                    "diarization error")
         expectEqual(detail?.transcript?.segments.count, 2, "two segments")
         expectEqual(detail?.transcript?.segments[1].language, "fr", "per-segment language")
         expectNil(detail?.audioAnalysis, "null audio_analysis → nil")
@@ -58,6 +63,7 @@ func runModelDecodingTests() {
         expectEqual(meta?.type, .other, "type defaults to other")
         expectEqual(meta?.status, .processing, "status defaults to processing")
         expectEqual(meta?.language, "auto", "language defaults to auto")
+        expectNil(meta?.diarizationError, "absent diarization_error → nil")
         expectEqual(meta?.preprocessAudio, true, "preprocess defaults true")
         expectEqual(meta?.audioAnalysisEnabled, false, "audio analysis defaults false")
         expectEqual(meta?.context, "", "context defaults empty")
