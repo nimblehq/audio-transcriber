@@ -58,6 +58,17 @@ class TestRequiredRepos:
         provisioning.set_token("hf_secret")
         assert "pyannote/wespeaker-voxceleb-resnet34-LM" in provisioning.required_repos()
 
+    def test_with_token_includes_plda_model(self):
+        """pyannote-audio 4.x loads its PLDA from this gated repo when the pipeline
+        is instantiated; it must be pre-fetched so a missing access grant fails
+        provisioning instead of silently dropping speakers mid-run (#150)."""
+        provisioning.set_token("hf_secret")
+        assert "pyannote/speaker-diarization-community-1" in provisioning.required_repos()
+
+    def test_without_token_excludes_plda_model(self):
+        provisioning.set_token("")
+        assert "pyannote/speaker-diarization-community-1" not in provisioning.required_repos()
+
 
 class TestDownload:
     def test_success_marks_provisioning_completed(self, monkeypatch):
