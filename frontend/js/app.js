@@ -4,6 +4,8 @@ const App = {
     init() {
         window.addEventListener('popstate', () => this.handleRoute());
         this.handleRoute();
+        // Surface the changelog once the first view is up; never blocks startup.
+        checkWhatsNew();
     },
 
     navigate(path) {

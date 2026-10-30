@@ -6,6 +6,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+### Added
+
+- "What's new" panel that appears on first load after the running version changes, listing the changes between the version you last ran and the current one, grouped Added / Changed / Fixed. It is sourced from this changelog; a version label in the footer reopens it on demand.
+
 ### Fixed
 
 - Pre-download the HuggingFace alignment models for the configured languages (Thai by default) during first-run provisioning, so they no longer download lazily at the align step (50%) mid-transcription — which was indistinguishable from a hang. Torch-native languages (English, French, German, Spanish, Italian) were already unaffected. The alignment-stage watchdog remains the safety net for any language left unprovisioned.

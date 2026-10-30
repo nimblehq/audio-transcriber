@@ -5,11 +5,13 @@ import MeetingTranscriberKit
 /// placeholder until the transcript viewer (slice 7); upload arrives in slice 6.
 struct MainView: View {
     @StateObject private var store: MeetingsStore
+    @StateObject private var whatsNew: WhatsNewStore
     @State private var selection: String?
     @State private var showingUpload = false
 
     init(client: APIClient) {
         _store = StateObject(wrappedValue: MeetingsStore(client: client))
+        _whatsNew = StateObject(wrappedValue: WhatsNewStore(client: client))
     }
 
     var body: some View {
@@ -17,6 +19,14 @@ struct MainView: View {
             MeetingListView(store: store, selection: $selection) { showingUpload = true }
                 .navigationTitle("Meetings")
                 .frame(minWidth: 280)
+                .safeAreaInset(edge: .bottom) {
+                    WhatsNewFooter(version: whatsNew.currentVersion) {
+                        Task { await whatsNew.showManually() }
+                    }
+                }
+                .sheet(isPresented: $whatsNew.isPresented) {
+                    WhatsNewView(entries: whatsNew.entries) { whatsNew.isPresented = false }
+                }
         } detail: {
             if let selection {
                 MeetingDetailView(client: store.client, meetingId: selection) {
@@ -38,6 +48,7 @@ struct MainView: View {
                 selection = newMeetingId
             }
         }
+        .task { await whatsNew.checkOnLaunch() }
     }
 }
 

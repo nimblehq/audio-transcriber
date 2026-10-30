@@ -79,6 +79,8 @@ for _meta_pkg in (
 _datas += [
     ("frontend", "frontend"),
     ("templates", "templates"),
+    # Surfaced in-app as "What's new" (#155); read via config.CHANGELOG_PATH.
+    ("CHANGELOG.md", "."),
 ]
 
 # Vendored native binaries (see scripts/vendor_ffmpeg.sh) → bundle bin/.

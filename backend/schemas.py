@@ -211,6 +211,23 @@ class SegmentSpeakerUpdate(BaseModel):
     speaker_name: str
 
 
+class ChangelogEntry(BaseModel):
+    """One released changelog version with its grouped change bullets."""
+
+    version: str
+    date: str | None = None
+    # Section name (Added / Changed / Fixed / ...) -> list of change bullets.
+    sections: dict[str, list[str]] = Field(default_factory=dict)
+
+
+class ChangelogResponse(BaseModel):
+    """Released changelog entries (newest first) and the current app version."""
+
+    # Latest released version, or None when the changelog is absent/empty.
+    current_version: str | None = None
+    entries: list[ChangelogEntry] = Field(default_factory=list)
+
+
 class ServiceConfig(BaseModel):
     """Local service configuration persisted under Application Support.
 
