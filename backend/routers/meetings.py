@@ -28,7 +28,7 @@ from config import MAX_UPLOAD_SIZE, MEETINGS_DIR
 
 router = APIRouter()
 
-ALLOWED_EXTENSIONS = {".mp3", ".mp4", ".m4a", ".wav", ".webm"}
+ALLOWED_EXTENSIONS = {".mp3", ".mp4", ".m4a", ".wav", ".webm", ".aac"}
 
 MODELS_MISSING_DETAIL = (
     "Transcription models are not installed yet. First-time model download "
@@ -345,6 +345,7 @@ async def stream_audio(meeting_id: str):
         ".m4a": "audio/mp4",
         ".wav": "audio/wav",
         ".webm": "audio/webm",
+        ".aac": "audio/aac",
     }
     media_type = media_types.get(ext, "application/octet-stream")
 
