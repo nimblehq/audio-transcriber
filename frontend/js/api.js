@@ -102,6 +102,12 @@ const API = {
         return res.json();
     },
 
+    async getChangelog() {
+        const res = await fetch('/api/changelog');
+        if (!res.ok) throw new Error('Failed to fetch changelog');
+        return res.json();
+    },
+
     audioUrl(meetingId) {
         return `/api/meetings/${meetingId}/audio`;
     },

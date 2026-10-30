@@ -17,6 +17,10 @@
         <span id="theme-icon"></span>
     </button>
 
+    <footer class="app-footer" id="app-footer" hidden>
+        <button type="button" class="version-label" id="version-label" title="What's new"></button>
+    </footer>
+
     <script>
         function getTheme() {
             return localStorage.getItem('theme') || 'dark';
@@ -43,6 +47,7 @@
     <script src="/static/js/components/overview-viewer.js"></script>
     <script src="/static/js/components/speaker-editor.js"></script>
     <script src="/static/js/components/analysis-viewer.js"></script>
+    <script src="/static/js/components/whats-new.js"></script>
     <script src="/static/js/app.js"></script>
 </body>
 </html>
