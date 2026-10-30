@@ -21,6 +21,7 @@ from backend.schemas import (
 )
 from backend.services.align_models import HF_ALIGN_REPOS, align_model_cached
 from backend.services.job_queue import job_queue
+from backend.services.logging_setup import redact_secrets
 from backend.services.multilingual_transcriber import transcribe_multilingual
 from config import MEETINGS_DIR, WHISPER_BATCH_SIZE, WHISPER_DEVICE, WHISPER_MODEL
 
@@ -204,9 +205,13 @@ def _diarization_failure_reason(exc: BaseException) -> str:
     huggingface_hub errors are multi-line (status, request id, then the
     actionable sentence, e.g. "Access to model ... is restricted ... Visit ...
     to ask for access."), so keep the last non-empty line.
+
+    The reason is persisted to metadata.json (part of the diagnostics zip) and
+    shown in the UI, and a dependency may embed the HF token in its message
+    (e.g. a 401 body), so mask secrets the same way the log handler does (#139).
     """
     lines = [line.strip() for line in str(exc).splitlines() if line.strip()]
-    return lines[-1] if lines else type(exc).__name__
+    return redact_secrets(lines[-1] if lines else type(exc).__name__)
 
 
 def _get_device() -> str:

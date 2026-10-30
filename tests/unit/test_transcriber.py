@@ -1411,6 +1411,22 @@ class TestDiarizationWatchdog:
         assert turns is None
         assert error.startswith("Access to model pyannote/speaker-diarization-community-1 is restricted")
 
+    def test_failure_reason_redacts_secrets(self, monkeypatch):
+        """The reason is persisted and shown in the UI, so a token embedded in a
+        dependency's error text must be masked like it is in the logs (#139)."""
+        monkeypatch.setattr("config.current_hf_token", lambda: "hf_secret")
+        monkeypatch.setattr(transcriber_module, "DIARIZATION_TIMEOUT_SEC", 5)
+
+        leaky = RuntimeError(
+            "401 Client Error.\nInvalid credentials in Authorization header: hf_TESTTOKEN0123456789abcdef"
+        )
+        pipeline_cls = MagicMock(side_effect=leaky)
+        with self._patch_diarize_module(pipeline_cls):
+            _, _, error = _diarize_and_assign("job1", object(), None, "cpu", {"segments": []})
+
+        assert "hf_TESTTOKEN" not in error
+        assert error == "Invalid credentials in Authorization header: hf_***"
+
     def test_no_token_reports_no_error(self, monkeypatch):
         """Diarization disabled by design (no token) is not a failure (BR-10)."""
         monkeypatch.setattr("config.current_hf_token", lambda: "")
