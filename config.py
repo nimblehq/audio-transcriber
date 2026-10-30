@@ -9,6 +9,10 @@ from backend.services import app_paths, service_config
 
 BASE_DIR = Path(__file__).parent
 TEMPLATES_DIR = BASE_DIR / "templates"
+# Hand-maintained changelog surfaced in-app as "What's new" (#155). In a dev
+# checkout BASE_DIR is the repo root; in the bundled app it is the extraction
+# root, where MeetingTranscriber.spec copies CHANGELOG.md.
+CHANGELOG_PATH = BASE_DIR / "CHANGELOG.md"
 
 
 def is_bundled() -> bool:
