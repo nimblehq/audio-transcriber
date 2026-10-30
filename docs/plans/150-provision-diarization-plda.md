@@ -33,3 +33,9 @@
 
 - Existing installs re-provision once (v4). Users who never accepted the community-1 conditions now see a provisioning failure instead of silent speaker loss — intended, but it blocks transcription until they accept or clear the token.
 - The reason string comes from third-party exception text; it passes through the existing log redaction only for logs, not metadata. huggingface_hub errors do not include the token.
+
+## Deviations
+
+| Date | Story | Decision changed | Rationale |
+|------|-------|------------------|-----------|
+| 2026-10-30 | #150 | TD-2 / Risks: the diarization failure reason is now passed through `redact_secrets` before it is stored in `metadata.json` and shown in the UI. | PR #151 review: the `status == "error"` branch catches any exception, and a dependency can embed an `hf_` token in its message (see `logging_setup.py`). The plan's assumption that huggingface_hub errors never carry the token did not cover that broad catch, and `metadata.json` ships in the #139 diagnostics zip. |
