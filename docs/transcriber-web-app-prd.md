@@ -150,7 +150,7 @@ No database. All data stored as files:
 
 **Features:**
 - Drag-and-drop zone for audio files
-- Accepted formats: mp3, mp4, m4a, wav, webm
+- Accepted formats: mp3, mp4, m4a, wav, webm, aac
 - Form fields:
   - Title (optional, defaults to filename)
   - Meeting type: dropdown (Interview / Sales / Client / Other)

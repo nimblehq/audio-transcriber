@@ -10,9 +10,9 @@ function renderUpload(container) {
                     <div class="drop-zone-icon">🎙</div>
                     <p>Drag & drop an audio file here</p>
                     <p class="drop-zone-hint">or click to select a file</p>
-                    <p class="drop-zone-formats">mp3, mp4, m4a, wav, webm</p>
+                    <p class="drop-zone-formats">mp3, mp4, m4a, wav, webm, aac</p>
                 </div>
-                <input type="file" id="file-input" accept=".mp3,.mp4,.m4a,.wav,.webm" hidden>
+                <input type="file" id="file-input" accept=".mp3,.mp4,.m4a,.wav,.webm,.aac" hidden>
             </div>
             <div id="file-info" class="file-info" hidden>
                 <span id="file-name"></span>

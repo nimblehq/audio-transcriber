@@ -107,7 +107,7 @@ The web app lets you upload recordings, track transcription progress, view trans
 
 ### Features
 
-- **Upload** audio/video files (mp3, mp4, m4a, wav, webm) up to 500 MB
+- **Upload** audio/video files (mp3, mp4, m4a, wav, webm, aac) up to 500 MB
 - **Real-time progress** tracking as files are transcribed
 - **Audio player** synced with the transcript -- click any line to jump to that moment
 - **Playback speed** control (0.5x to 2x)
