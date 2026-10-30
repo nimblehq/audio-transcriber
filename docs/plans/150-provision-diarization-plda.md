@@ -32,9 +32,9 @@
 ## Risks and Trade-offs
 
 - Existing installs re-provision once (v4). Users who never accepted the community-1 conditions now see a provisioning failure instead of silent speaker loss — intended, but it blocks transcription until they accept or clear the token.
-- The reason string comes from third-party exception text; it passes through the existing log redaction only for logs, not metadata. huggingface_hub errors do not include the token.
+- The reason string comes from third-party exception text; it passes through the existing log redaction only for logs, not metadata. huggingface_hub errors do not include the token. (Superseded; see Deviations from Plan.)
 
-## Deviations
+## Deviations from Plan
 
 | Date | Story | Decision changed | Rationale |
 |------|-------|------------------|-----------|
