@@ -32,6 +32,9 @@ public struct MeetingMetadata: Codable, Equatable, Identifiable {
     public let jobId: String?
     public let speakers: [String: String]
     public let error: String?
+    /// Set when diarization failed on an otherwise-ready meeting, so every
+    /// speaker is UNKNOWN (#150). Older payloads omit it → nil.
+    public let diarizationError: String?
     public let context: String
 
     public init(from decoder: Decoder) throws {
@@ -52,6 +55,7 @@ public struct MeetingMetadata: Codable, Equatable, Identifiable {
         jobId = try c.decodeIfPresent(String.self, forKey: .jobId)
         speakers = try c.decodeIfPresent([String: String].self, forKey: .speakers) ?? [:]
         error = try c.decodeIfPresent(String.self, forKey: .error)
+        diarizationError = try c.decodeIfPresent(String.self, forKey: .diarizationError)
         context = try c.decodeIfPresent(String.self, forKey: .context) ?? ""
     }
 }

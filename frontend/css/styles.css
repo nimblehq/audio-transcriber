@@ -452,6 +452,21 @@ body {
     color: var(--danger);
 }
 
+/* Degraded-but-ready meeting (e.g. diarization failed, #150) */
+.meeting-notice {
+    background: var(--bg-surface);
+    border-left: 3px solid var(--warning);
+    padding: 12px 16px;
+    margin-bottom: 16px;
+    border-radius: var(--radius-sm);
+    color: var(--text-muted);
+    font-size: 13px;
+}
+
+.meeting-notice strong {
+    color: var(--text);
+}
+
 /* Upload Form */
 .upload-form {
     max-width: 560px;

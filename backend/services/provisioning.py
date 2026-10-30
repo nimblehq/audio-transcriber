@@ -28,7 +28,11 @@ logger = logging.getLogger(__name__)
 #       ``align_languages`` (default Thai) — previously downloaded lazily at the
 #       align step (50%), looking like a hang (#141). Torch-native align models
 #       (en/fr/de/es/it) are unaffected.
-PROVISIONING_VERSION = 3
+#   v4: also pre-fetch speaker-diarization-community-1, whose PLDA pyannote-audio
+#       4.x loads whenever the diarization pipeline is instantiated. It is gated,
+#       so a missing access grant previously surfaced only as a silent 403 at the
+#       diarization step (all speakers UNKNOWN); now it fails provisioning (#150).
+PROVISIONING_VERSION = 4
 
 _lock = threading.Lock()
 _state: dict = {"state": DownloadState.IDLE, "progress": 0, "error": None}
@@ -72,6 +76,11 @@ def required_repos() -> list[str]:
             # over plain HTTP into the isolated bundle cache, with no timeout —
             # hanging the job. Pre-fetch it so diarization runs entirely offline.
             "pyannote/wespeaker-voxceleb-resnet34-LM",
+            # PLDA model pyannote-audio 4.x loads (plda/ subfolder) when the
+            # pipeline is instantiated; speaker-diarization-3.1's config does not
+            # override it. Gated — pre-fetching it here surfaces a missing access
+            # grant in the setup wizard instead of a silent mid-run 403 (#150).
+            "pyannote/speaker-diarization-community-1",
         ]
     # HF alignment models for the configured languages (torch-native and unknown
     # codes contribute nothing). Deduped against the list already assembled so a

@@ -442,6 +442,25 @@ class TestRetryTranscription:
         assert meta["audio_analysis_enabled"] is True
         assert meta["audio_analysis_status"] is None
 
+    @patch("backend.routers.meetings.start_transcription")
+    async def test_retry_clears_diarization_error(
+        self, mock_start, client, meetings_dir: Path, sample_metadata: dict, sample_audio: Path
+    ):
+        """Re-running a ready meeting whose diarization failed clears the stale
+        reason so the notice disappears until the new run reports (#150)."""
+        meeting_id = sample_metadata["id"]
+        sample_metadata["diarization_error"] = "Access to model x is restricted."
+        meeting_dir = meetings_dir / meeting_id
+        meeting_dir.mkdir()
+        (meeting_dir / "metadata.json").write_text(json.dumps(sample_metadata))
+        shutil.copy(sample_audio, meeting_dir / sample_metadata["audio_filename"])
+
+        res = await client.post(f"/api/meetings/{meeting_id}/retry")
+        assert res.status_code == 200
+
+        meta = json.loads((meetings_dir / meeting_id / "metadata.json").read_text())
+        assert meta["diarization_error"] is None
+
 
 class TestDeleteMeeting:
     async def test_delete_meeting(self, client, populated_meeting, meetings_dir: Path):

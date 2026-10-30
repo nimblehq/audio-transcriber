@@ -210,6 +210,48 @@ class TestRunTranscription:
         updated_job = queue.get_job(job.id)
         assert updated_job.status == JobStatus.COMPLETED
         assert updated_job.progress == 100
+        assert metadata["diarization_error"] is None
+
+    @patch("backend.services.transcriber.WHISPER_BATCH_SIZE", 16)
+    @patch("backend.services.transcriber.WHISPER_MODEL", "large-v3")
+    @patch("backend.services.transcriber.WHISPER_DEVICE", "cpu")
+    @patch("config.current_hf_token", new=lambda: "test-token")
+    def test_diarization_failure_records_reason_on_ready_meeting(self, tmp_path: Path):
+        """A failed diarization keeps the meeting READY but records why every
+        speaker is UNKNOWN, so clients can surface it (#150)."""
+        mock_whisperx, mock_torch, _, mock_assign = self._build_mocks()
+        mock_diarize_cls = MagicMock(side_effect=RuntimeError("403 Client Error.\nAccess to model x is restricted."))
+        queue = JobQueue()
+        meetings_dir = tmp_path / "meetings"
+        meeting_dir = _create_meeting_on_disk(meetings_dir)
+        job = queue.create_job("test-meeting")
+
+        with (
+            patch("backend.services.transcriber.MEETINGS_DIR", meetings_dir),
+            patch("backend.services.transcriber.job_queue", queue),
+            patch.dict(
+                "sys.modules",
+                {
+                    "whisperx": mock_whisperx,
+                    "torch": mock_torch,
+                    "whisperx.diarize": MagicMock(
+                        DiarizationPipeline=mock_diarize_cls,
+                        assign_word_speakers=mock_assign,
+                    ),
+                    "functools": __import__("functools"),
+                    "warnings": __import__("warnings"),
+                },
+            ),
+        ):
+            from backend.services.transcriber import _run_transcription
+
+            _run_transcription("test-meeting", job.id)
+
+        metadata = json.loads((meeting_dir / "metadata.json").read_text())
+        assert metadata["status"] == MeetingStatus.READY.value
+        assert metadata["diarization_error"] == "Access to model x is restricted."
+        mock_assign.assert_not_called()
+        assert queue.get_job(job.id).status == JobStatus.COMPLETED
 
     @patch("backend.services.transcriber.WHISPER_BATCH_SIZE", 16)
     @patch("backend.services.transcriber.WHISPER_MODEL", "large-v3")
@@ -1093,6 +1135,47 @@ class TestTranscriptionRouting:
         assert all(s["speaker"] == "UNKNOWN" for s in transcript["segments"])
         assert {s["language"] for s in transcript["segments"]} == {"en", "th"}
 
+    @patch("backend.services.transcriber.WHISPER_BATCH_SIZE", 16)
+    @patch("backend.services.transcriber.WHISPER_MODEL", "large-v3")
+    @patch("backend.services.transcriber.WHISPER_DEVICE", "cpu")
+    @patch("config.current_hf_token", new=lambda: "test-token")
+    def test_multilingual_diarization_failure_records_reason(self, tmp_path: Path):
+        """A failed diarization on the multilingual path keeps the meeting READY
+        and records the reason, like the single-language path (#150)."""
+        mw, mt, mdc, ma = self._ml_mocks()
+        mdc.side_effect = RuntimeError("403 Client Error.\nAccess to model x is restricted.")
+        queue = JobQueue()
+        meetings_dir = tmp_path / "meetings"
+        meeting_dir = _create_meeting_on_disk(meetings_dir, language="auto", expected_languages=["en", "th"])
+        job = queue.create_job("test-meeting")
+        ml = MagicMock(
+            return_value=(
+                [
+                    {"start": 0.0, "end": 2.0, "text": "Hello", "language": "en"},
+                    {"start": 2.0, "end": 4.0, "text": "สวัสดี", "language": "th"},
+                ],
+                "en",
+            )
+        )
+
+        with (
+            patch("backend.services.transcriber.MEETINGS_DIR", meetings_dir),
+            patch("backend.services.transcriber.job_queue", queue),
+            patch("backend.services.transcriber.transcribe_multilingual", ml),
+            patch.dict("sys.modules", self._sys_modules(mw, mt, mdc, ma)),
+        ):
+            from backend.services.transcriber import _run_transcription
+
+            _run_transcription("test-meeting", job.id)
+
+        ma.assert_not_called()
+        transcript = json.loads((meeting_dir / "transcript.json").read_text())
+        assert all(s["speaker"] == "UNKNOWN" for s in transcript["segments"])
+        metadata = json.loads((meeting_dir / "metadata.json").read_text())
+        assert metadata["status"] == MeetingStatus.READY.value
+        assert metadata["diarization_error"] == "Access to model x is restricted."
+        assert queue.get_job(job.id).status == JobStatus.COMPLETED
+
 
 def _fake_whisperx(align_side_effect):
     """Build a mock whisperx module for direct _align_multilingual_segments tests."""
@@ -1326,11 +1409,12 @@ class TestDiarizationWatchdog:
         pipeline_cls = MagicMock(side_effect=_never_returns)
         result = {"segments": []}
         with self._patch_diarize_module(pipeline_cls):
-            out, turns = _diarize_and_assign("job1", object(), None, "cpu", result)
+            out, turns, error = _diarize_and_assign("job1", object(), None, "cpu", result)
 
         release.set()
         assert out is result  # unchanged transcript
         assert turns is None  # diarization skipped
+        assert error is not None and "timed out" in error  # reason surfaced (#150)
 
     def test_completes_within_deadline(self, monkeypatch):
         monkeypatch.setattr("config.current_hf_token", lambda: "hf_secret")
@@ -1341,6 +1425,52 @@ class TestDiarizationWatchdog:
         diarize_model = MagicMock(return_value=seg)
         pipeline_cls = MagicMock(return_value=diarize_model)
         with self._patch_diarize_module(pipeline_cls):
-            out, turns = _diarize_and_assign("job1", object(), None, "cpu", {"segments": []})
+            out, turns, error = _diarize_and_assign("job1", object(), None, "cpu", {"segments": []})
 
         assert turns == [(0.0, 1.0, "SPEAKER_00")]
+        assert error is None
+
+    def test_failure_degrades_with_actionable_reason(self, monkeypatch):
+        """A gated-repo 403 (multi-line huggingface_hub message) degrades to no
+        speakers and reports its actionable last line (#150)."""
+        monkeypatch.setattr("config.current_hf_token", lambda: "hf_secret")
+        monkeypatch.setattr(transcriber_module, "DIARIZATION_TIMEOUT_SEC", 5)
+
+        gated = RuntimeError(
+            "403 Client Error. (Request ID: Root=1-abc)\n\n"
+            "Cannot access gated repo for url https://huggingface.co/x.\n"
+            "Access to model pyannote/speaker-diarization-community-1 is restricted and you are not in "
+            "the authorized list. Visit https://huggingface.co/pyannote/speaker-diarization-community-1 "
+            "to ask for access."
+        )
+        pipeline_cls = MagicMock(side_effect=gated)
+        result = {"segments": []}
+        with self._patch_diarize_module(pipeline_cls):
+            out, turns, error = _diarize_and_assign("job1", object(), None, "cpu", result)
+
+        assert out is result
+        assert turns is None
+        assert error.startswith("Access to model pyannote/speaker-diarization-community-1 is restricted")
+
+    def test_failure_reason_redacts_secrets(self, monkeypatch):
+        """The reason is persisted and shown in the UI, so a token embedded in a
+        dependency's error text must be masked like it is in the logs (#139)."""
+        monkeypatch.setattr("config.current_hf_token", lambda: "hf_secret")
+        monkeypatch.setattr(transcriber_module, "DIARIZATION_TIMEOUT_SEC", 5)
+
+        leaky = RuntimeError(
+            "401 Client Error.\nInvalid credentials in Authorization header: hf_TESTTOKEN0123456789abcdef"
+        )
+        pipeline_cls = MagicMock(side_effect=leaky)
+        with self._patch_diarize_module(pipeline_cls):
+            _, _, error = _diarize_and_assign("job1", object(), None, "cpu", {"segments": []})
+
+        assert "hf_TESTTOKEN" not in error
+        assert error == "Invalid credentials in Authorization header: hf_***"
+
+    def test_no_token_reports_no_error(self, monkeypatch):
+        """Diarization disabled by design (no token) is not a failure (BR-10)."""
+        monkeypatch.setattr("config.current_hf_token", lambda: "")
+        result = {"segments": []}
+        out, turns, error = _diarize_and_assign("job1", object(), None, "cpu", result)
+        assert (out, turns, error) == (result, None, None)
