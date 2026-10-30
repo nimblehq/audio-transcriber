@@ -122,6 +122,32 @@ JOB = {
 
 START_RESPONSE = {"meeting_id": DEMO_ID, "job_id": DEMO_ID}
 
+# Fixture for GET /api/changelog so the "What's new" sheet (#155) is testable in
+# a debug build. The real service parses CHANGELOG.md; the stub returns a fixed
+# shape. Open it from the sidebar version label, or bump the top version between
+# launches to see the on-launch sheet.
+CHANGELOG = {
+    "current_version": "9.9.0",
+    "entries": [
+        {
+            "version": "9.9.0",
+            "date": "2026-10-30",
+            "sections": {
+                "Added": [
+                    "A 'What's new' sheet that appears after an app update.",
+                    "A version label in the sidebar to reopen it on demand.",
+                ],
+                "Fixed": ["Stub demo fix so this panel has something to show."],
+            },
+        },
+        {
+            "version": "9.8.0",
+            "date": "2026-09-01",
+            "sections": {"Changed": ["An earlier demo change, shown for history."]},
+        },
+    ],
+}
+
 ANALYSIS_PROMPT = {
     "prompt": (
         "You are analyzing a meeting transcript. Summarize the key decisions, "
@@ -280,6 +306,8 @@ class Handler(BaseHTTPRequestHandler):
             self._send_audio()
         elif path.startswith("/api/meetings/") and path.endswith("/analysis-prompt"):
             self._send(200, ANALYSIS_PROMPT)
+        elif path == "/api/changelog":
+            self._send(200, CHANGELOG)
         elif path.startswith("/api/jobs/"):
             self._send(200, JOB)
         elif path.startswith("/api/meetings/"):
