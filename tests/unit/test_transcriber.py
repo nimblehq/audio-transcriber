@@ -1135,6 +1135,47 @@ class TestTranscriptionRouting:
         assert all(s["speaker"] == "UNKNOWN" for s in transcript["segments"])
         assert {s["language"] for s in transcript["segments"]} == {"en", "th"}
 
+    @patch("backend.services.transcriber.WHISPER_BATCH_SIZE", 16)
+    @patch("backend.services.transcriber.WHISPER_MODEL", "large-v3")
+    @patch("backend.services.transcriber.WHISPER_DEVICE", "cpu")
+    @patch("config.current_hf_token", new=lambda: "test-token")
+    def test_multilingual_diarization_failure_records_reason(self, tmp_path: Path):
+        """A failed diarization on the multilingual path keeps the meeting READY
+        and records the reason, like the single-language path (#150)."""
+        mw, mt, mdc, ma = self._ml_mocks()
+        mdc.side_effect = RuntimeError("403 Client Error.\nAccess to model x is restricted.")
+        queue = JobQueue()
+        meetings_dir = tmp_path / "meetings"
+        meeting_dir = _create_meeting_on_disk(meetings_dir, language="auto", expected_languages=["en", "th"])
+        job = queue.create_job("test-meeting")
+        ml = MagicMock(
+            return_value=(
+                [
+                    {"start": 0.0, "end": 2.0, "text": "Hello", "language": "en"},
+                    {"start": 2.0, "end": 4.0, "text": "สวัสดี", "language": "th"},
+                ],
+                "en",
+            )
+        )
+
+        with (
+            patch("backend.services.transcriber.MEETINGS_DIR", meetings_dir),
+            patch("backend.services.transcriber.job_queue", queue),
+            patch("backend.services.transcriber.transcribe_multilingual", ml),
+            patch.dict("sys.modules", self._sys_modules(mw, mt, mdc, ma)),
+        ):
+            from backend.services.transcriber import _run_transcription
+
+            _run_transcription("test-meeting", job.id)
+
+        ma.assert_not_called()
+        transcript = json.loads((meeting_dir / "transcript.json").read_text())
+        assert all(s["speaker"] == "UNKNOWN" for s in transcript["segments"])
+        metadata = json.loads((meeting_dir / "metadata.json").read_text())
+        assert metadata["status"] == MeetingStatus.READY.value
+        assert metadata["diarization_error"] == "Access to model x is restricted."
+        assert queue.get_job(job.id).status == JobStatus.COMPLETED
+
 
 def _fake_whisperx(align_side_effect):
     """Build a mock whisperx module for direct _align_multilingual_segments tests."""
