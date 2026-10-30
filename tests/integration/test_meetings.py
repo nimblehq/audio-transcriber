@@ -119,6 +119,18 @@ class TestCreateMeeting:
         assert "Unsupported file format" in res.json()["detail"]
 
     @patch("backend.routers.meetings.start_transcription")
+    async def test_upload_accepts_aac(self, mock_start, client, sample_audio: Path):
+        with open(sample_audio, "rb") as f:
+            res = await client.post(
+                "/api/meetings",
+                files={"file": ("recording.aac", f, "audio/aac")},
+                data={"title": "AAC Upload", "meeting_type": "other"},
+            )
+        assert res.status_code == 200
+        assert "meeting_id" in res.json()
+        mock_start.assert_called_once()
+
+    @patch("backend.routers.meetings.start_transcription")
     async def test_upload_creates_files_on_disk(self, mock_start, client, sample_audio: Path, meetings_dir: Path):
         with open(sample_audio, "rb") as f:
             res = await client.post(
