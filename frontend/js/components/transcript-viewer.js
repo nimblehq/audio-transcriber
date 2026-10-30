@@ -50,7 +50,7 @@ async function loadMeetingView(container, meetingId) {
 
                 ${!isProcessing && !isError ? `
                     ${meta.diarization_error ? `
-                        <div class="meeting-notice" role="status">
+                        <div class="meeting-notice">
                             <strong>Speaker detection failed</strong> — all speakers are shown as Unknown.
                             ${escapeHtml(meta.diarization_error)}
                             Fix the cause, then use Re-run.
