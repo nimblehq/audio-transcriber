@@ -91,6 +91,15 @@ public final class APIClient {
         return try await get("api/meetings/\(encodePath(id))/analysis-prompt", query: items)
     }
 
+    // MARK: Changelog
+
+    /// Released changelog entries + current version for the "What's new" sheet
+    /// (#155). Returns an empty response (current version nil) when the service
+    /// has no changelog, so callers simply show nothing.
+    public func changelog() async throws -> ChangelogResponse {
+        try await get("api/changelog")
+    }
+
     // MARK: Service / provisioning
 
     public func health() async throws -> HealthResponse {

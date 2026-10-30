@@ -11,6 +11,7 @@ public final class Preferences {
     private enum Key {
         static let theme = "theme"
         static let recentSpeakerNames = "recentSpeakerNames"
+        static let lastSeenChangelogVersion = "lastSeenChangelogVersion"
     }
 
     public static let recentNamesLimit = 10
@@ -28,6 +29,13 @@ public final class Preferences {
 
     public var recentSpeakerNames: [String] {
         defaults.stringArray(forKey: Key.recentSpeakerNames) ?? []
+    }
+
+    /// Latest changelog version the user has already been shown (#155). Nil until
+    /// the first successful launch check, which stores a silent baseline.
+    public var lastSeenChangelogVersion: String? {
+        get { defaults.string(forKey: Key.lastSeenChangelogVersion) }
+        set { defaults.set(newValue, forKey: Key.lastSeenChangelogVersion) }
     }
 
     /// Mirror utils.js `addRecentSpeakerName`: ignore blank, move-to-front,
